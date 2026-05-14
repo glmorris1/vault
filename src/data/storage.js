@@ -7,20 +7,23 @@ export function createId(prefix = "id") {
 
 export function createStarterData() {
   return {
-    locations: [
-      {
-        id: createId("loc"),
-        name: "Kitchen",
-        images: [],
-      },
-    ],
+    locations: [],
   };
 }
 
 export function loadVault() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : createStarterData();
+    if (!saved) return createStarterData();
+    const parsed = JSON.parse(saved);
+    if (
+      parsed.locations?.length === 1 &&
+      parsed.locations[0].name === "Kitchen" &&
+      parsed.locations[0].images?.length === 0
+    ) {
+      return createStarterData();
+    }
+    return parsed;
   } catch {
     return createStarterData();
   }
