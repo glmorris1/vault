@@ -3,7 +3,7 @@
 @theme {
   --color-vault-pink: #fde8ef;
   --color-vault-rose: #f8b9cc;
-  --color-vault-ink: #332733;
+  --color-vault-ink: #5d6066;
   --color-vault-muted: #8d7281;
   --color-vault-blue: #1f7af3;
   --shadow-soft: 0 18px 48px rgba(132, 77, 99, 0.16);
@@ -21,7 +21,7 @@ body,
 
 body {
   margin: 0;
-  color: #332733;
+  color: #5d6066;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.86), transparent 34rem),
     linear-gradient(180deg, #fff7fa 0%, #fde8ef 46%, #fff9fb 100%);
