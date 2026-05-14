@@ -1,14 +1,20 @@
 import { Check, Pencil } from "lucide-react";
 import { useState } from "react";
 
-export function EditableText({ value, onSave, className = "", inputClassName = "", textClassName = "", placeholder = "Name" }) {
+export function EditableText({ value, onSave, className = "", inputClassName = "", textClassName = "", placeholder = "Name", emptyValues = [] }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || "");
+  const isPlaceholderValue = !value || emptyValues.includes(value);
 
   function save() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== value) onSave(trimmed);
+    if (trimmed !== value) onSave(trimmed);
     setEditing(false);
+  }
+
+  function startEditing() {
+    setDraft(isPlaceholderValue ? "" : value || "");
+    setEditing(true);
   }
 
   if (editing) {
@@ -34,8 +40,8 @@ export function EditableText({ value, onSave, className = "", inputClassName = "
   }
 
   return (
-    <button className={`tap-highlight flex min-w-0 items-center gap-2 text-left ${className}`} onClick={() => setEditing(true)}>
-      <span className={`truncate ${textClassName}`}>{value || placeholder}</span>
+    <button className={`tap-highlight flex min-w-0 items-center gap-2 text-left ${className}`} onClick={startEditing}>
+      <span className={`truncate ${isPlaceholderValue ? "text-vault-muted" : ""} ${textClassName}`}>{isPlaceholderValue ? placeholder : value}</span>
       <Pencil className="shrink-0 text-vault-muted" size={16} />
     </button>
   );
