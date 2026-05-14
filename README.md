@@ -11,6 +11,16 @@ npm run dev
 
 Then open the local URL shown by Vite.
 
+## Cloud login setup
+
+Vault uses Firebase for cross-device accounts and cloud storage:
+
+- Firebase Authentication for email/password login
+- Firestore for locations, image records, pins, and item lists
+- Firebase Storage for uploaded photos
+
+Create a Firebase web app, enable Email/Password sign-in, create a Firestore database, and enable Storage. Copy `.env.example` to `.env.local` and fill in the Firebase web app values before running locally or deploying.
+
 ## Prototype features
 
 - Dashboard with location cards and instant search
@@ -21,7 +31,9 @@ Then open the local URL shown by Vite.
 - Tap an image to place responsive percentage-based blue pins
 - Add, edit, delete, and reorder items at each pin
 - Optional pin notes, item notes, quantity, and estimated value
-- Local browser persistence through `localStorage`
+- Email/password registration and login
+- Per-user cloud sync when Firebase is configured
+- Local browser persistence remains as a preview fallback
 - Import/export JSON backup for migration testing
 
 ## Architecture notes
@@ -33,4 +45,4 @@ The app is organized around the same domain objects that could map cleanly into 
 - `Pin`
 - `Item`
 
-The current storage adapter lives in `src/data/storage.js`. A native version could replace that adapter with SwiftData, Core Data, CloudKit, or file-backed storage while keeping the same conceptual model.
+The current local storage adapter lives in `src/data/storage.js`, while Firebase auth/sync lives in `src/services/firebase.js`. A native version could replace those adapters with SwiftData, Core Data, CloudKit, or a first-party API while keeping the same conceptual model.
