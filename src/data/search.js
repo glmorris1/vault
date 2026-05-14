@@ -9,6 +9,14 @@ function itemLabel(item, pin, image, location) {
   return location.name;
 }
 
+function imageLabel(image) {
+  return image?.name || "Unnamed photo";
+}
+
+function pinLabel(pin) {
+  return pin?.name || "Unnamed pin";
+}
+
 export function searchVault(data, rawQuery) {
   const query = rawQuery.trim().toLowerCase();
   if (!query) return [];
@@ -32,8 +40,8 @@ export function searchVault(data, rawQuery) {
         results.push({
           id: `image-${image.id}`,
           type: "Image",
-          title: image.name,
-          path: `${location.name} -> ${image.name}`,
+          title: imageLabel(image),
+          path: `${location.name} -> ${imageLabel(image)}`,
           to: `/locations/${location.id}/images/${image.id}`,
         });
       }
@@ -43,8 +51,8 @@ export function searchVault(data, rawQuery) {
           results.push({
             id: `pin-${pin.id}`,
             type: "Pin",
-            title: pin.name || "Unnamed pin",
-            path: `${location.name} -> ${image.name} -> ${pin.name || "Unnamed pin"}`,
+            title: pinLabel(pin),
+            path: `${location.name} -> ${imageLabel(image)} -> ${pinLabel(pin)}`,
             to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
           });
         }
@@ -61,7 +69,7 @@ export function searchVault(data, rawQuery) {
               id: `item-${item.id}`,
               type: "Item",
               title: itemLabel(item, pin, image, location),
-              path: `${location.name} -> ${image.name} -> ${pin.name || "Unnamed pin"}`,
+              path: `${location.name} -> ${imageLabel(image)} -> ${pinLabel(pin)}`,
               to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
             });
           }
