@@ -1,7 +1,7 @@
 import { Check, Pencil } from "lucide-react";
 import { useState } from "react";
 
-export function EditableText({ value, onSave, className = "", inputClassName = "", placeholder = "Name" }) {
+export function EditableText({ value, onSave, className = "", inputClassName = "", textClassName = "", placeholder = "Name" }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || "");
 
@@ -35,7 +35,7 @@ export function EditableText({ value, onSave, className = "", inputClassName = "
 
   return (
     <button className={`tap-highlight flex min-w-0 items-center gap-2 text-left ${className}`} onClick={() => setEditing(true)}>
-      <span className="truncate">{value || placeholder}</span>
+      <span className={`truncate ${textClassName}`}>{value || placeholder}</span>
       <Pencil className="shrink-0 text-vault-muted" size={16} />
     </button>
   );
