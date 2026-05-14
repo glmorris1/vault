@@ -1,4 +1,4 @@
-import { Plus, Search, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -122,17 +122,7 @@ export function Dashboard({ data, updateData }) {
               >
                 <div className="min-h-20">
                   <div className="flex items-center justify-between gap-4 p-5">
-                    <div className="min-w-0 flex-1">
-                      <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-                        <EditableText
-                          value={location.name}
-                          className="w-full"
-                          inputClassName="text-base"
-                          textClassName="text-3xl font-black leading-tight"
-                          onSave={(name) => renameLocation(location.id, name)}
-                        />
-                      </div>
-                    </div>
+                    <DashboardLocationTitle location={location} onRename={renameLocation} />
                     <button
                       className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
                       onClick={(event) => {
@@ -166,6 +156,56 @@ export function Dashboard({ data, updateData }) {
         onCancel={() => setDeleteId(null)}
         onConfirm={deleteLocation}
       />
+    </div>
+  );
+}
+
+function DashboardLocationTitle({ location, onRename }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(location.name);
+
+  function save() {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== location.name) onRename(location.id, trimmed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="min-w-0 flex-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        <input
+          className="min-h-12 w-full rounded-2xl border border-rose-100 bg-white px-4 text-base font-semibold outline-none focus:border-vault-rose"
+          value={draft}
+          autoFocus
+          placeholder="Location name"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={save}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") save();
+            if (event.key === "Escape") {
+              setDraft(location.name);
+              setEditing(false);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="truncate text-3xl font-black leading-tight">{location.name}</span>
+      <button
+        className="grid size-9 shrink-0 place-items-center rounded-full bg-pink-50 text-vault-muted transition active:scale-95"
+        onClick={(event) => {
+          event.stopPropagation();
+          setDraft(location.name);
+          setEditing(true);
+        }}
+        aria-label={`Rename ${location.name}`}
+      >
+        <Pencil size={15} />
+      </button>
     </div>
   );
 }
