@@ -1,4 +1,4 @@
-import { MapPin, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -41,7 +41,7 @@ export function ImageDetailPage({ data, updateData }) {
     const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
     const pin = {
       id: createId("pin"),
-      name: "New Pin",
+      name: "",
       xPercent: Math.max(0, Math.min(100, xPercent)),
       yPercent: Math.max(0, Math.min(100, yPercent)),
       notes: "",
@@ -67,7 +67,13 @@ export function ImageDetailPage({ data, updateData }) {
     <div className="grid gap-5 pb-8">
       <Card>
         <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name}</p>
-        <EditableText value={image.name} className="mt-2 w-full text-3xl font-black tracking-tight" onSave={renameImage} />
+        <EditableText
+          value={image.name}
+          className="mt-2 w-full text-3xl font-black tracking-tight"
+          placeholder="Name this photo"
+          emptyValues={["New Area", "image"]}
+          onSave={renameImage}
+        />
       </Card>
 
       <div className="relative overflow-hidden rounded-[2rem] bg-white shadow-soft">
@@ -83,18 +89,17 @@ export function ImageDetailPage({ data, updateData }) {
                 event.stopPropagation();
                 navigate(`/locations/${location.id}/images/${image.id}/pins/${pin.id}`);
               }}
-              aria-label={`Open ${pin.name}`}
+              aria-label={`Open ${pin.name || "pin"}`}
               role="button"
             >
-              <MapPin className="fill-vault-blue text-vault-blue" size={42} strokeWidth={2.4} />
-              <span className="absolute mt-1 text-[0.7rem] font-black">{image.pins.indexOf(pin) + 1}</span>
+              <PinMarker />
             </span>
           ))}
         </button>
       </div>
 
       <p className="rounded-2xl bg-white/70 p-4 text-center text-sm font-semibold leading-6 text-vault-muted">
-        Tap anywhere on the image to add a blue pin. Pins stay positioned by percentage, so they scale with the photo.
+        Tap anywhere on the image to add a marker pin.
       </p>
 
       <section className="grid gap-3">
@@ -104,7 +109,7 @@ export function ImageDetailPage({ data, updateData }) {
           image.pins.map((pin) => (
             <Card key={pin.id} className="flex items-center justify-between gap-3 p-4">
               <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/locations/${location.id}/images/${image.id}/pins/${pin.id}`)}>
-                <p className="truncate text-lg font-black">{pin.name || "Unnamed pin"}</p>
+                <p className="truncate text-lg font-black">{pin.name || "Name this pin"}</p>
                 <p className="text-sm text-vault-muted">{pin.items.length} item{pin.items.length === 1 ? "" : "s"}</p>
               </button>
               <Button className="min-h-11 rounded-xl px-3" variant="danger" onClick={() => setDeletePinId(pin.id)}>
@@ -123,5 +128,41 @@ export function ImageDetailPage({ data, updateData }) {
         onConfirm={deletePin}
       />
     </div>
+  );
+}
+
+function PinMarker() {
+  return (
+    <svg className="h-[52px] w-[42px] overflow-visible drop-shadow-lg" viewBox="0 0 84 104" aria-hidden="true">
+      <defs>
+        <radialGradient id="pinGlow" cx="50%" cy="38%" r="62%">
+          <stop offset="0%" stopColor="#60bdff" />
+          <stop offset="58%" stopColor="#0a8cff" />
+          <stop offset="100%" stopColor="#0069f4" />
+        </radialGradient>
+        <filter id="blueGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="7" result="blur" />
+          <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0 0 0 0 0 0.45 0 0 0 0 1 0 0 0 0.8 0" />
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path
+        d="M42 100C38 91 8 56 8 35C8 15.67 23.67 0 43 0C62.33 0 78 15.67 78 35C78 56 46 91 42 100ZM43 20a15 15 0 1 0 0 30a15 15 0 0 0 0-30Z"
+        fill="url(#pinGlow)"
+        fillRule="evenodd"
+        filter="url(#blueGlow)"
+      />
+      <path
+        d="M42 95C36 82 14 54 14 35C14 19 27 6 43 6C59 6 72 19 72 35C72 54 48 82 42 95ZM43 18a17 17 0 1 0 0 34a17 17 0 0 0 0-34Z"
+        fill="#0085ff"
+        fillRule="evenodd"
+        opacity="0.85"
+      />
+      <circle cx="43" cy="35" r="18" fill="none" stroke="#005ee8" strokeWidth="4" opacity="0.55" />
+      <circle cx="43" cy="35" r="13" fill="none" stroke="#6bc4ff" strokeWidth="3" opacity="0.5" />
+    </svg>
   );
 }
