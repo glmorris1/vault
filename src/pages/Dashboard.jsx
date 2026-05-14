@@ -106,26 +106,39 @@ export function Dashboard({ data, updateData }) {
             <EmptyState title="No locations yet">Add your first room, cabinet, closet, or storage area.</EmptyState>
           ) : (
             data.locations.map((location) => (
-              <Card key={location.id} className="overflow-hidden p-0">
-                <div className="relative min-h-20">
-                  <button
-                    className="absolute inset-0 rounded-[inherit] text-left transition active:scale-[0.99]"
-                    onClick={() => navigate(`/locations/${location.id}`)}
-                    aria-label={`Open ${location.name}`}
-                  />
-                  <div className="relative z-10 flex items-center justify-between gap-4 p-5">
+              <Card
+                key={location.id}
+                className="cursor-pointer overflow-hidden p-0 transition active:scale-[0.99]"
+                onClick={() => navigate(`/locations/${location.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(`/locations/${location.id}`);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${location.name}`}
+              >
+                <div className="min-h-20">
+                  <div className="flex items-center justify-between gap-4 p-5">
                     <div className="min-w-0 flex-1">
-                      <EditableText
-                        value={location.name}
-                        className="w-full"
-                        inputClassName="text-base"
-                        textClassName="text-3xl font-black leading-tight"
-                        onSave={(name) => renameLocation(location.id, name)}
-                      />
+                      <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                        <EditableText
+                          value={location.name}
+                          className="w-full"
+                          inputClassName="text-base"
+                          textClassName="text-3xl font-black leading-tight"
+                          onSave={(name) => renameLocation(location.id, name)}
+                        />
+                      </div>
                     </div>
                     <button
                       className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
-                      onClick={() => setDeleteId(location.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteId(location.id);
+                      }}
                       aria-label={`Delete ${location.name}`}
                     >
                       <Trash2 size={18} />
