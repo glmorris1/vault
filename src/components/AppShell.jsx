@@ -1,7 +1,7 @@
 import { ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export function AppShell({ children, title, subtitle, showBack = false, user, onLogout }) {
+export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError }) {
   const navigate = useNavigate();
 
   return (
@@ -26,6 +26,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
           )}
         </div>
       </header>
+      {cloudError && <p className="mb-4 rounded-2xl bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">{cloudError}</p>}
       {children}
     </div>
   );
