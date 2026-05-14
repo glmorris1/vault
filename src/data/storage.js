@@ -1,5 +1,7 @@
 const STORAGE_KEY = "vault.prototype.v1";
 const ONBOARDING_KEY = "vault.prototype.onboarded";
+const MAX_IMAGE_SIZE = 1600;
+const IMAGE_QUALITY = 0.82;
 
 export function createId(prefix = "id") {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
@@ -32,7 +34,11 @@ export function loadVault() {
 // Storage is isolated behind this adapter so a future iOS version can swap
 // localStorage for SwiftData/Core Data without changing the screen model.
 export function saveVault(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.warn("Vault could not save the latest change. Try deleting an oversized photo.", error);
+  }
 }
 
 export function hasSeenOnboarding() {
@@ -46,9 +52,42 @@ export function setSeenOnboarding() {
 export function readImageFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
+    reader.onload = async () => {
+      try {
+        resolve(await compressImageDataUrl(reader.result, file.type));
+      } catch {
+        resolve(reader.result);
+      }
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+function compressImageDataUrl(dataUrl, fileType) {
+  if (!fileType.startsWith("image/") || fileType === "image/svg+xml" || fileType === "image/gif") {
+    return Promise.resolve(dataUrl);
+  }
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_SIZE / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Canvas is unavailable."));
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", IMAGE_QUALITY));
+    };
+    image.onerror = reject;
+    image.src = dataUrl;
   });
 }
 
