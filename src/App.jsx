@@ -16,6 +16,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
   const [vaultReady, setVaultReady] = useState(!isFirebaseConfigured);
+  const [cloudError, setCloudError] = useState("");
   const saveTimerRef = useRef(null);
   const lastCloudJsonRef = useRef("");
 
@@ -27,6 +28,7 @@ export default function App() {
       setUser(nextUser);
       setAuthReady(true);
       setVaultReady(!nextUser);
+      setCloudError("");
       if (!nextUser) setData(createStarterData());
     });
   }, []);
@@ -43,6 +45,7 @@ export default function App() {
       },
       (error) => {
         console.error("Vault cloud sync failed", error);
+        setCloudError(formatCloudError(error, "Cloud sync is blocked."));
         setVaultReady(true);
       },
     );
@@ -57,8 +60,12 @@ export default function App() {
       saveVaultToCloud(user.uid, data)
         .then(() => {
           lastCloudJsonRef.current = nextJson;
+          setCloudError("");
         })
-        .catch((error) => console.error("Vault cloud save failed", error));
+        .catch((error) => {
+          console.error("Vault cloud save failed", error);
+          setCloudError(formatCloudError(error, "Cloud save is blocked."));
+        });
     }, 500);
     return () => window.clearTimeout(saveTimerRef.current);
   }, [data, user, vaultReady]);
@@ -101,7 +108,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <AppShell title="Vault" subtitle="Home Organization & Inventory" user={user} onLogout={logoutUser}>
+          <AppShell title="Vault" subtitle="Home Organization & Inventory" user={user} onLogout={logoutUser} cloudError={cloudError}>
             <Dashboard data={data} updateData={updateData} />
           </AppShell>
         }
@@ -109,7 +116,7 @@ export default function App() {
       <Route
         path="/locations/:locationId"
         element={
-          <AppShell title="Location" subtitle="Photos, areas, and storage zones" showBack user={user} onLogout={logoutUser}>
+          <AppShell title="Location" subtitle="Photos, areas, and storage zones" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
             <LocationPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
@@ -117,7 +124,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId"
         element={
-          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser}>
+          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
             <ImageDetailPage data={data} updateData={updateData} />
           </AppShell>
         }
@@ -125,7 +132,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId/pins/:pinId"
         element={
-          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser}>
+          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
             <PinDetailPage data={data} updateData={updateData} />
           </AppShell>
         }
@@ -133,4 +140,15 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+}
+
+function formatCloudError(error, fallback) {
+  const message = error?.message || fallback;
+  if (message.includes("permission-denied") || message.includes("Missing or insufficient permissions")) {
+    return `${fallback} Firebase Firestore rules need to allow this signed-in user to read and write their own Vault.`;
+  }
+  if (message.includes("unavailable")) {
+    return "Cloud sync is temporarily unavailable. Your changes remain on this device until sync works again.";
+  }
+  return message;
 }
