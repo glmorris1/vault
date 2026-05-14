@@ -10,12 +10,15 @@ import { createId, readImageFile } from "../data/storage.js";
 import { findLocation } from "../data/search.js";
 import { isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
 
+const PHOTO_UPLOAD_TIMEOUT = 45000;
+
 export function LocationPage({ data, updateData, userId }) {
   const { locationId } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [deleteImageId, setDeleteImageId] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const location = findLocation(data, locationId);
 
   if (!location) {
@@ -35,6 +38,7 @@ export function LocationPage({ data, updateData, userId }) {
     if (files.length === 0) return;
 
     setUploading(true);
+    setUploadError("");
     const newImages = [];
     try {
       for (const file of files) {
@@ -44,7 +48,11 @@ export function LocationPage({ data, updateData, userId }) {
         let storagePath = "";
 
         if (userId && isFirebaseConfigured) {
-          const uploaded = await uploadPhotoForUser(userId, imageId, compressedDataUrl);
+          const uploaded = await withTimeout(
+            uploadPhotoForUser(userId, imageId, compressedDataUrl),
+            PHOTO_UPLOAD_TIMEOUT,
+            "Photo upload timed out. Check Firebase Storage rules and try again.",
+          );
           photoDataUrl = uploaded.downloadUrl;
           storagePath = uploaded.storagePath;
         }
@@ -60,6 +68,8 @@ export function LocationPage({ data, updateData, userId }) {
 
       updateLocation((current) => ({ ...current, images: [...newImages, ...current.images] }));
       if (newImages.length === 1) navigate(`/locations/${location.id}/images/${newImages[0].id}`);
+    } catch (error) {
+      setUploadError(formatUploadError(error));
     } finally {
       setUploading(false);
     }
@@ -95,6 +105,7 @@ export function LocationPage({ data, updateData, userId }) {
         <Plus size={22} />
         {uploading ? "Saving photo..." : "Add image or take photo"}
       </Button>
+      {uploadError && <p className="rounded-2xl bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">{uploadError}</p>}
       <input ref={fileInputRef} className="hidden" type="file" accept="image/*" capture="environment" multiple onChange={handleImageUpload} />
 
       <section className="grid grid-cols-2 gap-3">
@@ -142,4 +153,24 @@ export function LocationPage({ data, updateData, userId }) {
       />
     </div>
   );
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
+
+function formatUploadError(error) {
+  const message = error?.message || "Photo could not be saved.";
+  if (message.includes("storage/unauthorized") || message.includes("permission")) {
+    return "Photo upload was blocked by Firebase Storage rules. Allow signed-in users to write their own /users/{uid}/images files.";
+  }
+  if (message.includes("storage/unknown") || message.includes("storage/retry-limit-exceeded")) {
+    return "Photo upload could not reach Firebase Storage. Check that Storage is enabled for this Firebase project.";
+  }
+  return message;
 }
