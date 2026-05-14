@@ -41,7 +41,7 @@ body::before {
   background-size: min(82vw, 28rem);
   filter: brightness(1.22) saturate(0.72);
   mix-blend-mode: multiply;
-  opacity: 0.08;
+  opacity: 0.104;
 }
 
 #root {
