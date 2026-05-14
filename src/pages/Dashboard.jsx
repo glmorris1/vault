@@ -105,41 +105,35 @@ export function Dashboard({ data, updateData }) {
           {data.locations.length === 0 ? (
             <EmptyState title="No locations yet">Add your first room, cabinet, closet, or storage area.</EmptyState>
           ) : (
-            data.locations.map((location) => {
-              const pinCount = location.images.reduce((total, image) => total + image.pins.length, 0);
-              const itemCount = location.images.reduce((total, image) => total + image.pins.reduce((items, pin) => items + pin.items.length, 0), 0);
-              return (
-                <Card key={location.id} className="p-0">
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <EditableText
-                          value={location.name}
-                          className="w-full text-2xl font-black"
-                          inputClassName="text-base"
-                          onSave={(name) => renameLocation(location.id, name)}
-                        />
-                        <p className="mt-1 text-sm text-vault-muted">
-                          {location.images.length} image{location.images.length === 1 ? "" : "s"} - {pinCount} pin{pinCount === 1 ? "" : "s"} - {itemCount} item{itemCount === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                      <button
-                        className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
-                        onClick={() => setDeleteId(location.id)}
-                        aria-label={`Delete ${location.name}`}
-                      >
-                        <Trash2 size={18} />
-                      </button>
+            data.locations.map((location) => (
+              <Card key={location.id} className="overflow-hidden p-0">
+                <div className="relative min-h-20">
+                  <button
+                    className="absolute inset-0 rounded-[inherit] text-left transition active:scale-[0.99]"
+                    onClick={() => navigate(`/locations/${location.id}`)}
+                    aria-label={`Open ${location.name}`}
+                  />
+                  <div className="relative z-10 flex items-center justify-between gap-4 p-5">
+                    <div className="min-w-0 flex-1">
+                      <EditableText
+                        value={location.name}
+                        className="w-full"
+                        inputClassName="text-base"
+                        textClassName="text-3xl font-black leading-tight"
+                        onSave={(name) => renameLocation(location.id, name)}
+                      />
                     </div>
+                    <button
+                      className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
+                      onClick={() => setDeleteId(location.id)}
+                      aria-label={`Delete ${location.name}`}
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                  <div className="border-t border-rose-50 p-3">
-                    <Button className="min-h-10 w-full rounded-xl px-3 text-sm" onClick={() => navigate(`/locations/${location.id}`)}>
-                      Open
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })
+                </div>
+              </Card>
+            ))
           )}
         </section>
       )}
