@@ -1,4 +1,4 @@
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -81,7 +81,7 @@ export function Dashboard({ data, updateData }) {
               const itemCount = location.images.reduce((total, image) => total + image.pins.reduce((items, pin) => items + pin.items.length, 0), 0);
               return (
                 <Card key={location.id} className="p-0">
-                  <Link className="block p-5" to={`/locations/${location.id}`}>
+                  <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <h2 className="truncate text-2xl font-black">{location.name}</h2>
@@ -89,15 +89,21 @@ export function Dashboard({ data, updateData }) {
                           {location.images.length} image{location.images.length === 1 ? "" : "s"} - {pinCount} pin{pinCount === 1 ? "" : "s"} - {itemCount} item{itemCount === 1 ? "" : "s"}
                         </p>
                       </div>
-                      <div className="rounded-full bg-pink-100 px-3 py-1 text-xs font-black text-vault-ink">Open</div>
+                      <button
+                        className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
+                        onClick={() => setDeleteId(location.id)}
+                        aria-label={`Delete ${location.name}`}
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
-                  </Link>
+                  </div>
                   <div className="flex gap-2 border-t border-rose-50 p-3">
                     <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" onClick={() => renameLocation(location.id, window.prompt("Rename location", location.name)?.trim() || location.name)}>
                       Rename
                     </Button>
-                    <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="danger" onClick={() => setDeleteId(location.id)}>
-                      Delete
+                    <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" onClick={() => navigate(`/locations/${location.id}`)}>
+                      Open
                     </Button>
                   </div>
                 </Card>
