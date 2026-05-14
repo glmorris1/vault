@@ -59,7 +59,7 @@ export function LocationPage({ data, updateData, userId }) {
 
         newImages.push({
           id: imageId,
-          name: file.name.replace(/\.[^/.]+$/, "") || "New Area",
+          name: "",
           photoDataUrl,
           storagePath,
           pins: [],
@@ -128,6 +128,8 @@ export function LocationPage({ data, updateData, userId }) {
                   value={image.name}
                   className="w-full text-base font-black"
                   inputClassName="text-sm"
+                  placeholder="Name this photo"
+                  emptyValues={["New Area", "image"]}
                   onSave={(name) => renameImage(image.id, name)}
                 />
                 <p className="mt-1 text-xs font-medium text-vault-muted">{image.pins.length} pin{image.pins.length === 1 ? "" : "s"}</p>
