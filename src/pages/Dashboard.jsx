@@ -22,7 +22,7 @@ export function Dashboard({ data, updateData }) {
     const name = locationName.trim();
     if (!name) return;
     const location = { id: createId("loc"), name, images: [] };
-    updateData((current) => ({ ...current, locations: [location, ...current.locations] }));
+    updateData((current) => ({ ...current, locations: [...current.locations, location] }));
     setLocationName("");
     setAddingLocation(false);
     navigate(`/locations/${location.id}`);
