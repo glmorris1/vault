@@ -83,7 +83,7 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={pin.id}
               data-pin
-              className="pin-pop absolute grid size-11 -translate-x-1/2 -translate-y-full place-items-center text-white drop-shadow-lg"
+              className="pin-pop absolute grid size-9 -translate-x-1/2 -translate-y-full place-items-center text-white drop-shadow-md"
               style={{ left: `${pin.xPercent}%`, top: `${pin.yPercent}%` }}
               onClick={(event) => {
                 event.stopPropagation();
@@ -133,27 +133,18 @@ export function ImageDetailPage({ data, updateData }) {
 
 function PinMarker() {
   return (
-    <svg className="h-[52px] w-[42px] overflow-visible drop-shadow-lg" viewBox="0 0 84 104" aria-hidden="true">
+    <svg className="h-[42px] w-[34px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
       <defs>
         <radialGradient id="pinGlow" cx="50%" cy="38%" r="62%">
           <stop offset="0%" stopColor="#60bdff" />
           <stop offset="58%" stopColor="#0a8cff" />
           <stop offset="100%" stopColor="#0069f4" />
         </radialGradient>
-        <filter id="blueGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="7" result="blur" />
-          <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0 0 0 0 0 0.45 0 0 0 0 1 0 0 0 0.8 0" />
-          <feMerge>
-            <feMergeNode />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
       <path
         d="M42 100C38 91 8 56 8 35C8 15.67 23.67 0 43 0C62.33 0 78 15.67 78 35C78 56 46 91 42 100ZM43 20a15 15 0 1 0 0 30a15 15 0 0 0 0-30Z"
         fill="url(#pinGlow)"
         fillRule="evenodd"
-        filter="url(#blueGlow)"
       />
       <path
         d="M42 95C36 82 14 54 14 35C14 19 27 6 43 6C59 6 72 19 72 35C72 54 48 82 42 95ZM43 18a17 17 0 1 0 0 34a17 17 0 0 0 0-34Z"
@@ -162,7 +153,6 @@ function PinMarker() {
         opacity="0.85"
       />
       <circle cx="43" cy="35" r="18" fill="none" stroke="#005ee8" strokeWidth="4" opacity="0.55" />
-      <circle cx="43" cy="35" r="13" fill="none" stroke="#6bc4ff" strokeWidth="3" opacity="0.5" />
     </svg>
   );
 }
