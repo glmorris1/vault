@@ -48,7 +48,7 @@ export function PinDetailPage({ data, updateData }) {
         ...current.items,
         {
           id: createId("item"),
-          name: "New item",
+          name: "",
           notes: "",
           quantity: "",
           estimatedValue: "",
@@ -110,7 +110,13 @@ export function PinDetailPage({ data, updateData }) {
     <div className="grid gap-5 pb-8">
       <Card>
         <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name} - {image.name}</p>
-        <EditableText value={pin.name} className="mt-2 w-full text-3xl font-black tracking-tight" onSave={(name) => updatePin((current) => ({ ...current, name }))} />
+        <EditableText
+          value={pin.name}
+          className="mt-2 w-full text-3xl font-black tracking-tight"
+          placeholder="Name this pin"
+          emptyValues={["New Pin"]}
+          onSave={(name) => updatePin((current) => ({ ...current, name }))}
+        />
         <label className="mt-5 block">
           <span className="text-sm font-bold text-vault-muted">Pin notes</span>
           <textarea
@@ -146,7 +152,7 @@ export function PinDetailPage({ data, updateData }) {
               <div className="flex items-start gap-3">
                 <input
                   className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
-                  value={item.name}
+                  value={item.name === "New item" ? "" : item.name}
                   placeholder="Item name"
                   onChange={(event) => updateItem(item.id, { name: event.target.value })}
                 />
