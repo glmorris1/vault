@@ -1,7 +1,7 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export function AppShell({ children, title, subtitle, showBack = false }) {
+export function AppShell({ children, title, subtitle, showBack = false, user, onLogout }) {
   const navigate = useNavigate();
 
   return (
@@ -19,6 +19,11 @@ export function AppShell({ children, title, subtitle, showBack = false }) {
               {subtitle && <p className="truncate text-sm font-medium text-vault-muted">{subtitle}</p>}
             </div>
           </div>
+          {user && (
+            <button className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-vault-ink shadow-sm" onClick={onLogout} aria-label="Sign out">
+              <LogOut size={18} />
+            </button>
+          )}
         </div>
       </header>
       {children}
