@@ -8,12 +8,14 @@ import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { createId, readImageFile } from "../data/storage.js";
 import { findLocation } from "../data/search.js";
+import { isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
 
-export function LocationPage({ data, updateData }) {
+export function LocationPage({ data, updateData, userId }) {
   const { locationId } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [deleteImageId, setDeleteImageId] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const location = findLocation(data, locationId);
 
   if (!location) {
@@ -32,19 +34,35 @@ export function LocationPage({ data, updateData }) {
     event.target.value = "";
     if (files.length === 0) return;
 
+    setUploading(true);
     const newImages = [];
-    for (const file of files) {
-      const photoDataUrl = await readImageFile(file);
-      newImages.push({
-        id: createId("img"),
-        name: file.name.replace(/\.[^/.]+$/, "") || "New Area",
-        photoDataUrl,
-        pins: [],
-      });
-    }
+    try {
+      for (const file of files) {
+        const imageId = createId("img");
+        const compressedDataUrl = await readImageFile(file);
+        let photoDataUrl = compressedDataUrl;
+        let storagePath = "";
 
-    updateLocation((current) => ({ ...current, images: [...newImages, ...current.images] }));
-    if (newImages.length === 1) navigate(`/locations/${location.id}/images/${newImages[0].id}`);
+        if (userId && isFirebaseConfigured) {
+          const uploaded = await uploadPhotoForUser(userId, imageId, compressedDataUrl);
+          photoDataUrl = uploaded.downloadUrl;
+          storagePath = uploaded.storagePath;
+        }
+
+        newImages.push({
+          id: imageId,
+          name: file.name.replace(/\.[^/.]+$/, "") || "New Area",
+          photoDataUrl,
+          storagePath,
+          pins: [],
+        });
+      }
+
+      updateLocation((current) => ({ ...current, images: [...newImages, ...current.images] }));
+      if (newImages.length === 1) navigate(`/locations/${location.id}/images/${newImages[0].id}`);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function renameImage(imageId, name) {
@@ -75,7 +93,7 @@ export function LocationPage({ data, updateData }) {
 
       <Button className="w-full" onClick={() => fileInputRef.current?.click()}>
         <Plus size={22} />
-        Add image or take photo
+        {uploading ? "Saving photo..." : "Add image or take photo"}
       </Button>
       <input ref={fileInputRef} className="hidden" type="file" accept="image/*" capture="environment" multiple onChange={handleImageUpload} />
 
