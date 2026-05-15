@@ -401,7 +401,12 @@ export function PinDetailPage({ data, updateData, userId }) {
   return (
     <div className="grid gap-5 pb-8">
       <Card>
-        <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name} - {image.name}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 text-xs font-black uppercase tracking-wide text-vault-muted">{location.name} - {image.name}</p>
+          <button className="grid size-10 shrink-0 place-items-center rounded-full bg-red-50 text-red-700" onClick={() => setDeletePinOpen(true)} aria-label="Delete pin">
+            <Trash2 size={18} />
+          </button>
+        </div>
         <EditableText
           value={pin.name}
           className="mt-2 w-full text-3xl font-black tracking-tight"
@@ -409,10 +414,6 @@ export function PinDetailPage({ data, updateData, userId }) {
           emptyValues={["New Pin"]}
           onSave={(name) => updatePin((current) => ({ ...current, name }))}
         />
-        <Button className="mt-4 w-full" variant="danger" onClick={() => setDeletePinOpen(true)}>
-          <Trash2 size={18} />
-          Delete pin
-        </Button>
       </Card>
 
       <div className="flex items-center justify-between gap-3">
