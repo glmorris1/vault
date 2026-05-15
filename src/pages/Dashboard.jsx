@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
+import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { createId } from "../data/storage.js";
 import { searchVault } from "../data/search.js";
@@ -159,7 +160,7 @@ export function Dashboard({ data, updateData }) {
             : "This removes the location, photos, pins, and stored items from this browser."
         }
         requireCheckbox
-        checkboxLabel="OK to delete this location"
+        checkboxLabel="Are you sure?"
         onCancel={() => setDeleteId(null)}
         onConfirm={deleteLocation}
       />
