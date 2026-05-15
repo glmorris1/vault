@@ -2,7 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { defineSecret, defineString } from "firebase-functions/params";
+import { defineSecret } from "firebase-functions/params";
 import type { AIPhotoAnalysis, AIPhotoSuggestion } from "./types";
 
 initializeApp();
@@ -10,7 +10,7 @@ initializeApp();
 // Add this secret before deploying:
 // firebase functions:secrets:set OPENAI_API_KEY
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
-const openaiModel = defineString("OPENAI_MODEL", { default: "gpt-5.4-mini" });
+const OPENAI_MODEL = "gpt-4o-mini";
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
@@ -64,7 +64,7 @@ export const analyzePhotoWithAI = onCall(
         storagePath,
         photoWidth,
         photoHeight,
-        model: openaiModel.value(),
+        model: OPENAI_MODEL,
         analysis,
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -96,52 +96,71 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
     throw new HttpsError("failed-precondition", "OPENAI_API_KEY is not configured for Cloud Functions.");
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: openaiModel.value(),
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: buildPrompt(photoWidth, photoHeight),
-            },
-            {
-              type: "input_image",
-              image_url: imageDataUrl,
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "vault_photo_analysis",
-          strict: true,
-          schema: analysisSchema,
-        },
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: buildPrompt(photoWidth, photoHeight),
+              },
+              {
+                type: "input_image",
+                image_url: imageDataUrl,
+              },
+            ],
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "vault_photo_analysis",
+            strict: true,
+            schema: analysisSchema,
+          },
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new HttpsError("internal", `AI analysis failed: ${errorText.slice(0, 500)}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new HttpsError("failed-precondition", readableOpenAIError(errorText));
+    }
+
+    const payload = await response.json();
+    const outputText = extractOutputText(payload);
+    if (!outputText) {
+      throw new HttpsError("data-loss", "AI analysis returned no readable suggestions. Please try another photo.");
+    }
+
+    return normalizeAnalysis(JSON.parse(outputText));
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "AI analysis failed unexpectedly. Please try again.");
+  }
+}
+
+function readableOpenAIError(errorText: string) {
+  try {
+    const parsed = JSON.parse(errorText);
+    const message = parsed?.error?.message;
+    if (typeof message === "string" && message.trim()) {
+      return `OpenAI could not analyze this photo: ${message.slice(0, 240)}`;
+    }
+  } catch {
+    // Fall back to a generic message below.
   }
 
-  const payload = await response.json();
-  const outputText = extractOutputText(payload);
-  if (!outputText) {
-    throw new HttpsError("internal", "AI analysis returned no structured output.");
-  }
-
-  return normalizeAnalysis(JSON.parse(outputText));
+  return "OpenAI could not analyze this photo right now. Please try again.";
 }
 
 function buildPrompt(photoWidth?: number, photoHeight?: number) {
