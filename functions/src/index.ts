@@ -11,6 +11,7 @@ initializeApp();
 // firebase functions:secrets:set OPENAI_API_KEY
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const OPENAI_MODEL = "gpt-4o-mini";
+const STORAGE_BUCKET = "vault-4e944.firebasestorage.app";
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
@@ -22,56 +23,71 @@ export const analyzePhotoWithAI = onCall(
     cors: true,
   },
   async (request): Promise<AIPhotoAnalysis> => {
-    const uid = request.auth?.uid;
-    if (!uid) {
-      throw new HttpsError("unauthenticated", "Sign in before using AI photo analysis.");
-    }
+    try {
+      const uid = request.auth?.uid;
+      if (!uid) {
+        throw new HttpsError("unauthenticated", "Sign in before using AI photo analysis.");
+      }
 
-    const imageId = readString(request.data?.imageId, "imageId");
-    const storagePath = readString(request.data?.storagePath, "storagePath");
-    const photoWidth = readOptionalNumber(request.data?.photoWidth);
-    const photoHeight = readOptionalNumber(request.data?.photoHeight);
+      const imageId = readString(request.data?.imageId, "imageId");
+      const storagePath = readString(request.data?.storagePath, "storagePath");
+      const photoWidth = readOptionalNumber(request.data?.photoWidth);
+      const photoHeight = readOptionalNumber(request.data?.photoHeight);
 
-    if (!storagePath.startsWith(`users/${uid}/images/`)) {
-      throw new HttpsError("permission-denied", "This photo does not belong to the signed-in user.");
-    }
+      if (!storagePath.startsWith(`users/${uid}/images/`)) {
+        throw new HttpsError("permission-denied", "This photo does not belong to the signed-in user.");
+      }
 
-    await verifyPhotoIsInUserVault(uid, imageId, storagePath);
+      await verifyPhotoIsInUserVault(uid, imageId, storagePath);
 
-    const bucket = getStorage().bucket();
-    const file = bucket.file(storagePath);
-    const [metadata] = await file.getMetadata().catch(() => {
-      throw new HttpsError("not-found", "Photo was not found in Firebase Storage.");
-    });
+      const file = getStorage().bucket(STORAGE_BUCKET).file(storagePath);
+      const [metadata] = await file.getMetadata().catch(() => {
+        throw new HttpsError("not-found", "Photo was not found in Firebase Storage.");
+      });
 
-    const size = Number(metadata.size || 0);
-    if (!Number.isFinite(size) || size <= 0 || size > MAX_IMAGE_BYTES) {
-      throw new HttpsError("invalid-argument", "Photo is too large for AI analysis.");
-    }
+      const size = Number(metadata.size || 0);
+      if (!Number.isFinite(size) || size <= 0 || size > MAX_IMAGE_BYTES) {
+        throw new HttpsError("invalid-argument", "Photo is too large for AI analysis.");
+      }
 
-    const [imageBuffer] = await file.download();
-    const contentType = metadata.contentType || "image/jpeg";
-    const dataUrl = `data:${contentType};base64,${imageBuffer.toString("base64")}`;
+      const [imageBuffer] = await file.download();
+      const contentType = metadata.contentType || "image/jpeg";
+      const dataUrl = `data:${contentType};base64,${imageBuffer.toString("base64")}`;
 
-    const analysis = await callOpenAI(dataUrl, photoWidth, photoHeight);
+      const analysis = await callOpenAI(dataUrl, photoWidth, photoHeight);
 
-    await getFirestore()
-      .collection("vaults")
-      .doc(uid)
-      .collection("aiAnalyses")
-      .add({
+      await saveAIAnalysis(uid, {
         imageId,
         storagePath,
         photoWidth,
         photoHeight,
         model: OPENAI_MODEL,
         analysis,
-        createdAt: FieldValue.serverTimestamp(),
       });
 
-    return analysis;
+      return analysis;
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      console.error("analyzePhotoWithAI unexpected failure", error);
+      throw new HttpsError("failed-precondition", "AI analysis could not start on the server. Please try again.");
+    }
   },
 );
+
+async function saveAIAnalysis(uid: string, record: Record<string, unknown>) {
+  try {
+    await getFirestore()
+      .collection("vaults")
+      .doc(uid)
+      .collection("aiAnalyses")
+      .add({
+        ...record,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    console.error("AI analysis audit write failed", error);
+  }
+}
 
 async function verifyPhotoIsInUserVault(uid: string, imageId: string, storagePath: string) {
   const snapshot = await getFirestore().collection("vaults").doc(uid).get();
@@ -142,10 +158,20 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
       throw new HttpsError("data-loss", "AI analysis returned no readable suggestions. Please try another photo.");
     }
 
-    return normalizeAnalysis(JSON.parse(outputText));
+    return normalizeAnalysis(safeParseAnalysis(outputText));
   } catch (error) {
     if (error instanceof HttpsError) throw error;
+    console.error("OpenAI analysis call failed unexpectedly", error);
     throw new HttpsError("internal", "AI analysis failed unexpectedly. Please try again.");
+  }
+}
+
+function safeParseAnalysis(outputText: string) {
+  try {
+    return JSON.parse(outputText);
+  } catch (error) {
+    console.error("AI analysis JSON parse failed", error, outputText.slice(0, 500));
+    throw new HttpsError("data-loss", "AI returned unreadable suggestions. Please try another photo.");
   }
 }
 
