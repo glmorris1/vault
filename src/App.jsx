@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "./components/AppShell.jsx";
 import { Onboarding } from "./pages/Onboarding.jsx";
@@ -8,6 +8,7 @@ import { LocationPage } from "./pages/LocationPage.jsx";
 import { ImageDetailPage } from "./pages/ImageDetailPage.jsx";
 import { PinDetailPage } from "./pages/PinDetailPage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
+import { findLocation } from "./data/search.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
 
 const THEME_STORAGE_KEY = "vault-theme";
@@ -124,9 +125,14 @@ export default function App() {
       <Route
         path="/locations/:locationId"
         element={
-          <AppShell title="Location" subtitle="Photos, areas, and storage zones" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
-            <LocationPage data={data} updateData={updateData} userId={user.uid} />
-          </AppShell>
+          <LocationRoute
+            data={data}
+            updateData={updateData}
+            user={user}
+            cloudError={cloudError}
+            theme={theme}
+            onThemeChange={setTheme}
+          />
         }
       />
       <Route
@@ -147,6 +153,17 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+function LocationRoute({ data, updateData, user, cloudError, theme, onThemeChange }) {
+  const { locationId } = useParams();
+  const location = findLocation(data, locationId);
+
+  return (
+    <AppShell title={location?.name || "Location"} showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={onThemeChange}>
+      <LocationPage data={data} updateData={updateData} userId={user.uid} />
+    </AppShell>
   );
 }
 
