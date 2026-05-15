@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
-import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { createId } from "../data/storage.js";
 import { searchVault } from "../data/search.js";
@@ -16,6 +15,8 @@ export function Dashboard({ data, updateData }) {
   const [addingLocation, setAddingLocation] = useState(false);
   const [locationName, setLocationName] = useState("");
   const results = useMemo(() => searchVault(data, query), [data, query]);
+  const deleteLocationTarget = data.locations.find((location) => location.id === deleteId);
+  const deleteSummary = deleteLocationTarget ? summarizeLocation(deleteLocationTarget) : null;
 
   function addLocation(event) {
     event?.preventDefault();
@@ -152,12 +153,30 @@ export function Dashboard({ data, updateData }) {
       <ConfirmDialog
         open={Boolean(deleteId)}
         title="Delete location?"
-        message="This removes the location, photos, pins, and stored items from this browser."
+        message={
+          deleteSummary
+            ? `This will delete "${deleteLocationTarget.name}" with ${deleteSummary.rooms} room${deleteSummary.rooms === 1 ? "" : "s"}, ${deleteSummary.images} image${deleteSummary.images === 1 ? "" : "s"}, ${deleteSummary.pins} pin${deleteSummary.pins === 1 ? "" : "s"}, and ${deleteSummary.items} item${deleteSummary.items === 1 ? "" : "s"}.`
+            : "This removes the location, photos, pins, and stored items from this browser."
+        }
+        requireCheckbox
+        checkboxLabel="OK to delete this location"
         onCancel={() => setDeleteId(null)}
         onConfirm={deleteLocation}
       />
     </div>
   );
+}
+
+function summarizeLocation(location) {
+  const images = [...(location.images || []), ...(location.rooms || []).flatMap((room) => room.images || [])];
+  const pins = images.flatMap((image) => image.pins || []);
+  const items = pins.flatMap((pin) => pin.items || []);
+  return {
+    rooms: (location.rooms || []).length,
+    images: images.length,
+    pins: pins.length,
+    items: items.length,
+  };
 }
 
 function DashboardLocationTitle({ location, onRename }) {
