@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Palette, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, ListOrdered, LogOut, Mail, Menu, Palette, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -11,7 +11,7 @@ const themes = [
   { id: "cream", label: "Linen" },
 ];
 
-export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange }) {
+export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
@@ -122,6 +122,25 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               >
                 sakurasimplicityllc@gmail.com
               </a>
+            </MenuSection>
+
+            <MenuSection
+              id="alphabetize"
+              icon={<ListOrdered size={21} />}
+              title="Alphabetize Me!"
+              open={openMenuSections.has("alphabetize")}
+              onToggle={() => toggleMenuSection("alphabetize")}
+            >
+              <p className="text-sm font-semibold leading-6 text-vault-muted">
+                Click this if you, like me, just can't even, and need everything to be alphabetized. We'll put everything in its proper order.
+              </p>
+              <button
+                className="inline-flex min-h-11 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black tracking-[0.16em] text-white shadow-soft transition active:scale-[0.98]"
+                onClick={onAlphabetize}
+                type="button"
+              >
+                ABC
+              </button>
             </MenuSection>
 
             <div className="mt-auto border-t border-rose-100 pt-5">
