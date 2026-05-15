@@ -11,6 +11,7 @@ import { findImage } from "../data/search.js";
 import { analyzePhotoWithAI } from "../services/firebase.js";
 
 const SUGGESTION_TYPES = ["cabinet", "drawer", "shelf", "bin", "box", "appliance", "closet", "countertop", "other"];
+const IMAGE_TIPS = ["Tap anywhere on the image to add a marker pin.", "Press and hold a pin to drag it to a new location."];
 
 export function ImageDetailPage({ data, updateData }) {
   const { locationId, imageId } = useParams();
@@ -23,12 +24,14 @@ export function ImageDetailPage({ data, updateData }) {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
   const [showTip, setShowTip] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
   const [deleteImageOpen, setDeleteImageOpen] = useState(false);
   const [draggingPinId, setDraggingPinId] = useState("");
   const [draggingPinLabel, setDraggingPinLabel] = useState("");
   const photoFrameRef = useRef(null);
   const draggingPinRef = useRef(null);
   const draggingSuggestionRef = useRef(null);
+  const tipTouchStartRef = useRef(null);
   const suppressPinClickRef = useRef(false);
   const suppressSuggestionClickRef = useRef(false);
   const { location, image } = findImage(data, locationId, imageId);
@@ -286,7 +289,14 @@ export function ImageDetailPage({ data, updateData }) {
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name}</p>
           <div className="flex shrink-0 items-center gap-2">
-            <button className="grid size-10 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(true)} aria-label="Show pin tip">
+            <button
+              className="grid size-10 place-items-center rounded-full bg-vault-pink text-vault-ink"
+              onClick={() => {
+                setTipIndex(0);
+                setShowTip(true);
+              }}
+              aria-label="Show pin tip"
+            >
               <Info size={19} />
             </button>
             <button className="grid size-10 place-items-center rounded-full bg-red-50 text-red-700" onClick={() => setDeleteImageOpen(true)} aria-label="Delete image">
@@ -425,10 +435,6 @@ export function ImageDetailPage({ data, updateData }) {
         </section>
       )}
 
-      <p className="rounded-2xl bg-white/70 p-4 text-center text-sm font-semibold leading-6 text-vault-muted">
-        Tap anywhere on the image to add a marker pin.
-      </p>
-
       <section className="grid gap-3">
         {image.pins.length === 0 ? (
           <EmptyState icon="pin" title="No pins yet">Tap the photo where something is stored.</EmptyState>
@@ -459,20 +465,45 @@ export function ImageDetailPage({ data, updateData }) {
         title="Delete image?"
         message={`This will delete this image with ${image.pins.length} pin${image.pins.length === 1 ? "" : "s"} and ${countImageItems(image)} item${countImageItems(image) === 1 ? "" : "s"}.`}
         requireCheckbox
-        checkboxLabel="OK to delete this image"
+        checkboxLabel="Are you sure?"
         onCancel={() => setDeleteImageOpen(false)}
         onConfirm={deleteImage}
       />
       {showTip && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-vault-ink/30 p-5 backdrop-blur-sm" onClick={() => setShowTip(false)}>
-          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            onTouchStart={(event) => {
+              tipTouchStartRef.current = event.touches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(event) => {
+              const start = tipTouchStartRef.current;
+              const end = event.changedTouches[0]?.clientX;
+              tipTouchStartRef.current = null;
+              if (start === null || end === undefined) return;
+              if (end - start > 35) setTipIndex((current) => Math.min(IMAGE_TIPS.length - 1, current + 1));
+              if (start - end > 35) setTipIndex((current) => Math.max(0, current - 1));
+            }}
+          >
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold text-vault-ink">Tip</h2>
               <button className="grid size-10 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(false)} aria-label="Close tip">
                 <X size={18} />
               </button>
             </div>
-            <p className="mt-3 text-sm font-semibold leading-6 text-vault-muted">Tip: Press and hold a pin to drag it to a new location.</p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-vault-muted">{IMAGE_TIPS[tipIndex]}</p>
+            <div className="mt-4 flex justify-center gap-2" aria-label="Tip pages">
+              {IMAGE_TIPS.map((tip, index) => (
+                <button
+                  key={tip}
+                  className={`size-2.5 rounded-full transition ${index === tipIndex ? "bg-vault-blue" : "bg-vault-pink"}`}
+                  onClick={() => setTipIndex(index)}
+                  aria-label={`Show tip ${index + 1}`}
+                  type="button"
+                />
+              ))}
+            </div>
             <Button className="mt-5 w-full" variant="secondary" onClick={() => setShowTip(false)}>
               Close
             </Button>
