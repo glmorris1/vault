@@ -1,6 +1,6 @@
-import { Trash2 } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
@@ -8,11 +8,20 @@ import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { createId } from "../data/storage.js";
 import { findImage } from "../data/search.js";
+import { analyzePhotoWithAI } from "../services/firebase.js";
+
+const SUGGESTION_TYPES = ["cabinet", "drawer", "shelf", "bin", "box", "appliance", "closet", "countertop", "other"];
 
 export function ImageDetailPage({ data, updateData }) {
   const { locationId, imageId } = useParams();
   const navigate = useNavigate();
   const [deletePinId, setDeletePinId] = useState(null);
+  const [photoSize, setPhotoSize] = useState({ width: 0, height: 0 });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
   const { location, image } = findImage(data, locationId, imageId);
 
   if (!location || !image) {
@@ -63,6 +72,77 @@ export function ImageDetailPage({ data, updateData }) {
     setDeletePinId(null);
   }
 
+  async function requestAISuggestions() {
+    setAiLoading(true);
+    setAiError("");
+    setSuggestions([]);
+    setSelectedSuggestionIds([]);
+    try {
+      const analysis = await analyzePhotoWithAI({
+        imageId: image.id,
+        storagePath: image.storagePath,
+        photoDataUrl: image.photoDataUrl,
+        photoWidth: photoSize.width,
+        photoHeight: photoSize.height,
+      });
+      const nextSuggestions = (analysis?.suggestions || []).map(normalizeSuggestion);
+      setAiSummary(analysis?.summary || "");
+      setSuggestions(nextSuggestions);
+      setSelectedSuggestionIds(nextSuggestions.map((suggestion) => suggestion.id));
+    } catch (error) {
+      setAiError(formatAIError(error));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function updateSuggestion(id, patch) {
+    setSuggestions((current) => current.map((suggestion) => (suggestion.id === id ? { ...suggestion, ...patch } : suggestion)));
+  }
+
+  function toggleSuggestion(id) {
+    setSelectedSuggestionIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function deleteSuggestion(id) {
+    setSuggestions((current) => current.filter((suggestion) => suggestion.id !== id));
+    setSelectedSuggestionIds((current) => current.filter((item) => item !== id));
+  }
+
+  function acceptSuggestions(ids) {
+    const accepted = suggestions.filter((suggestion) => ids.includes(suggestion.id));
+    if (accepted.length === 0) return;
+    updateImage((current) => ({
+      ...current,
+      pins: [
+        ...current.pins,
+        ...accepted.map((suggestion) => ({
+          id: createId("pin"),
+          name: suggestion.label,
+          xPercent: suggestion.xPercent,
+          yPercent: suggestion.yPercent,
+          notes: suggestion.notes,
+          items: suggestion.visibleItems.map((itemName) => ({
+            id: createId("item"),
+            name: itemName,
+            notes: "",
+            quantity: "",
+            estimatedValue: "",
+          })),
+        })),
+      ],
+    }));
+    setSuggestions((current) => current.filter((suggestion) => !ids.includes(suggestion.id)));
+    setSelectedSuggestionIds((current) => current.filter((id) => !ids.includes(id)));
+  }
+
+  function cancelSuggestions() {
+    setSuggestions([]);
+    setSelectedSuggestionIds([]);
+    setAiSummary("");
+    setAiError("");
+  }
+
   return (
     <div className="grid gap-5 pb-8">
       <Card>
@@ -78,7 +158,13 @@ export function ImageDetailPage({ data, updateData }) {
 
       <div className="relative overflow-hidden rounded-[2rem] bg-white shadow-soft">
         <button className="relative block w-full touch-manipulation" onClick={placePin} aria-label="Add pin to image">
-          <img className="block w-full select-none" src={image.photoDataUrl} alt={image.name} draggable="false" />
+          <img
+            className="block w-full select-none"
+            src={image.photoDataUrl}
+            alt={image.name}
+            draggable="false"
+            onLoad={(event) => setPhotoSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+          />
           {image.pins.map((pin) => (
             <span
               key={pin.id}
@@ -95,8 +181,73 @@ export function ImageDetailPage({ data, updateData }) {
               <PinMarker />
             </span>
           ))}
+          {suggestions.map((suggestion) => (
+            <span
+              key={suggestion.id}
+              data-pin
+              className="absolute grid size-9 -translate-x-1/2 -translate-y-full place-items-center"
+              style={{ left: `${suggestion.xPercent}%`, top: `${suggestion.yPercent}%` }}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleSuggestion(suggestion.id);
+              }}
+              aria-label={`Toggle suggested pin ${suggestion.label}`}
+              role="button"
+            >
+              <SuggestedPinMarker selected={selectedSuggestionIds.includes(suggestion.id)} />
+            </span>
+          ))}
         </button>
       </div>
+
+      <Card className="grid gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black">AI photo assistant</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-vault-muted">
+              AI suggestions may be imperfect. Please review before saving.
+            </p>
+          </div>
+          <Sparkles className="shrink-0 text-vault-blue" size={24} />
+        </div>
+        <Button className="w-full" onClick={requestAISuggestions} disabled={aiLoading}>
+          <Sparkles size={18} />
+          {aiLoading ? "Analyzing photo..." : "Use AI for this photo"}
+        </Button>
+        {aiError && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold leading-6 text-red-700">{aiError}</p>}
+        {aiSummary && <p className="rounded-2xl bg-blue-50 p-3 text-sm font-semibold leading-6 text-vault-ink">{aiSummary}</p>}
+        {suggestions.length > 0 && (
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button className="min-h-11 rounded-xl px-3 text-sm" variant="pin" onClick={() => acceptSuggestions(suggestions.map((suggestion) => suggestion.id))}>
+                Accept all
+              </Button>
+              <Button className="min-h-11 rounded-xl px-3 text-sm" variant="secondary" onClick={() => acceptSuggestions(selectedSuggestionIds)}>
+                Accept selected
+              </Button>
+            </div>
+            <Button className="min-h-11 rounded-xl px-3 text-sm" variant="soft" onClick={cancelSuggestions}>
+              Cancel
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {suggestions.length > 0 && (
+        <section className="grid gap-3">
+          <h2 className="px-1 text-xl font-black">AI suggestions</h2>
+          {suggestions.map((suggestion) => (
+            <SuggestionEditor
+              key={suggestion.id}
+              suggestion={suggestion}
+              selected={selectedSuggestionIds.includes(suggestion.id)}
+              onToggle={() => toggleSuggestion(suggestion.id)}
+              onChange={(patch) => updateSuggestion(suggestion.id, patch)}
+              onDelete={() => deleteSuggestion(suggestion.id)}
+            />
+          ))}
+        </section>
+      )}
 
       <p className="rounded-2xl bg-white/70 p-4 text-center text-sm font-semibold leading-6 text-vault-muted">
         Tap anywhere on the image to add a marker pin.
@@ -131,6 +282,115 @@ export function ImageDetailPage({ data, updateData }) {
   );
 }
 
+function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }) {
+  const labelInputRef = useRef(null);
+  const visibleItemsText = suggestion.visibleItems.join(", ");
+
+  return (
+    <Card className={`grid gap-3 p-4 ${selected ? "ring-2 ring-vault-blue/40" : ""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm font-black text-vault-ink">
+          <input className="size-5 accent-vault-blue" type="checkbox" checked={selected} onChange={onToggle} />
+          Selected
+        </label>
+        <button className="grid size-10 place-items-center rounded-full bg-red-50 text-red-700" onClick={onDelete} aria-label="Delete suggestion">
+          <Trash2 size={16} />
+        </button>
+      </div>
+      <Button className="min-h-10 rounded-xl px-3 text-sm" variant="secondary" onClick={() => labelInputRef.current?.focus()}>
+        Edit
+      </Button>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-bold text-vault-muted">Label</span>
+        <input
+          ref={labelInputRef}
+          className="min-h-11 rounded-2xl border border-rose-100 bg-white px-4 font-semibold outline-none focus:border-vault-rose"
+          value={suggestion.label}
+          placeholder="Storage area label"
+          onChange={(event) => onChange({ label: event.target.value })}
+        />
+      </label>
+
+      <div className="grid grid-cols-2 gap-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-bold text-vault-muted">Type</span>
+          <select
+            className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm font-semibold outline-none focus:border-vault-rose"
+            value={suggestion.type}
+            onChange={(event) => onChange({ type: event.target.value })}
+          >
+            {SUGGESTION_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold text-vault-muted">Confidence</span>
+          <input
+            className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            value={suggestion.confidence}
+            onChange={(event) => onChange({ confidence: clampNumber(event.target.value, 0, 1) })}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-bold text-vault-muted">X %</span>
+          <input
+            className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            value={suggestion.xPercent}
+            onChange={(event) => onChange({ xPercent: clampNumber(event.target.value, 0, 100) })}
+          />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold text-vault-muted">Y %</span>
+          <input
+            className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            value={suggestion.yPercent}
+            onChange={(event) => onChange({ yPercent: clampNumber(event.target.value, 0, 100) })}
+          />
+        </label>
+      </div>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-bold text-vault-muted">Visible items</span>
+        <input
+          className="min-h-11 rounded-2xl border border-rose-100 bg-white px-4 text-sm outline-none focus:border-vault-rose"
+          value={visibleItemsText}
+          placeholder="plates, bowls, batteries"
+          onChange={(event) => onChange({ visibleItems: splitItems(event.target.value) })}
+        />
+      </label>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-bold text-vault-muted">Notes</span>
+        <textarea
+          className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
+          value={suggestion.notes}
+          placeholder="Only include what is visible."
+          onChange={(event) => onChange({ notes: event.target.value })}
+        />
+      </label>
+    </Card>
+  );
+}
+
 function PinMarker() {
   return (
     <svg className="h-[42px] w-[34px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
@@ -155,4 +415,53 @@ function PinMarker() {
       <circle cx="43" cy="35" r="18" fill="none" stroke="#005ee8" strokeWidth="4" opacity="0.55" />
     </svg>
   );
+}
+
+function SuggestedPinMarker({ selected }) {
+  return (
+    <svg className="h-[42px] w-[34px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
+      <path
+        d="M42 100C38 91 8 56 8 35C8 15.67 23.67 0 43 0C62.33 0 78 15.67 78 35C78 56 46 91 42 100ZM43 20a15 15 0 1 0 0 30a15 15 0 0 0 0-30Z"
+        fill={selected ? "#7c3aed" : "#38bdf8"}
+        fillRule="evenodd"
+        stroke="white"
+        strokeWidth="4"
+      />
+      <circle cx="43" cy="35" r="18" fill="none" stroke={selected ? "#4c1d95" : "#075985"} strokeWidth="4" opacity="0.7" />
+    </svg>
+  );
+}
+
+function normalizeSuggestion(suggestion) {
+  return {
+    id: suggestion.id || createId("ai"),
+    label: suggestion.label || "Suggested pin",
+    type: SUGGESTION_TYPES.includes(suggestion.type) ? suggestion.type : "other",
+    xPercent: clampNumber(suggestion.xPercent, 0, 100),
+    yPercent: clampNumber(suggestion.yPercent, 0, 100),
+    confidence: clampNumber(suggestion.confidence, 0, 1),
+    visibleItems: Array.isArray(suggestion.visibleItems) ? suggestion.visibleItems.filter(Boolean).map(String) : [],
+    notes: suggestion.notes || "Only include what is visible. Do not guess hidden contents.",
+  };
+}
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function splitItems(value) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatAIError(error) {
+  const message = error?.message || "AI analysis failed. Please try again.";
+  if (message.includes("unauthenticated")) return "Please sign in before using AI photo analysis.";
+  if (message.includes("not-found")) return "This photo could not be found in secure storage.";
+  if (message.includes("permission-denied")) return "This photo does not belong to the current signed-in user.";
+  return message.replace("FirebaseError: ", "");
 }
