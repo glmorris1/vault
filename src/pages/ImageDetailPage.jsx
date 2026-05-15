@@ -459,9 +459,10 @@ function splitItems(value) {
 }
 
 function formatAIError(error) {
-  const message = error?.message || "AI analysis failed. Please try again.";
+  const message = error?.message || error?.details || "AI analysis failed. Please try again.";
   if (message.includes("unauthenticated")) return "Please sign in before using AI photo analysis.";
   if (message.includes("not-found")) return "This photo could not be found in secure storage.";
   if (message.includes("permission-denied")) return "This photo does not belong to the current signed-in user.";
+  if (message === "internal") return "AI analysis failed on the server. Please try again after the function update finishes deploying.";
   return message.replace("FirebaseError: ", "");
 }
