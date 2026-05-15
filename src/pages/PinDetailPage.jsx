@@ -21,6 +21,8 @@ export function PinDetailPage({ data, updateData, userId }) {
   const suppressItemClickRef = useRef(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
   const [draggingItemId, setDraggingItemId] = useState("");
+  const [itemDropIndex, setItemDropIndex] = useState(null);
+  const [itemDragPreview, setItemDragPreview] = useState(null);
   const [deletePinOpen, setDeletePinOpen] = useState(false);
   const [deletePhotoId, setDeletePhotoId] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -130,8 +132,31 @@ export function PinDetailPage({ data, updateData, userId }) {
     const pointerId = event.pointerId;
     target.setPointerCapture?.(pointerId);
     const timer = window.setTimeout(() => {
-      itemDragRef.current = { id: itemId, startX, startY, active: true, target, pointerId };
+      const rect = target.getBoundingClientRect();
+      const fromIndex = pin.items.findIndex((item) => item.id === itemId);
+      const item = pin.items[fromIndex];
+      itemDragRef.current = {
+        id: itemId,
+        startX,
+        startY,
+        active: true,
+        target,
+        pointerId,
+        fromIndex,
+        dropIndex: fromIndex,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
       setDraggingItemId(itemId);
+      setItemDropIndex(fromIndex);
+      setItemDragPreview({
+        id: itemId,
+        label: item?.name?.trim() || "Item name",
+        width: rect.width,
+        height: rect.height,
+        x: rect.left,
+        y: rect.top,
+      });
       suppressItemClickRef.current = true;
     }, 350);
     itemDragRef.current = { id: itemId, startX, startY, active: false, timer, target, pointerId };
@@ -148,11 +173,23 @@ export function PinDetailPage({ data, updateData, userId }) {
       return;
     }
     event.preventDefault();
-    const targetIndex = pin.items.findIndex((item) => {
+    const visibleItems = pin.items.filter((item) => item.id !== itemId);
+    const targetIndex = visibleItems.findIndex((item) => {
       const rect = itemRowRefs.current[item.id]?.getBoundingClientRect();
       return rect && event.clientY < rect.top + rect.height / 2;
     });
-    reorderItem(itemId, targetIndex === -1 ? pin.items.length - 1 : targetIndex);
+    const nextDropIndex = targetIndex === -1 ? visibleItems.length : targetIndex;
+    drag.dropIndex = nextDropIndex;
+    setItemDropIndex(nextDropIndex);
+    setItemDragPreview((current) =>
+      current
+        ? {
+            ...current,
+            x: event.clientX - drag.offsetX,
+            y: event.clientY - drag.offsetY,
+          }
+        : current,
+    );
   }
 
   function endItemPress(event, itemId) {
@@ -162,6 +199,7 @@ export function PinDetailPage({ data, updateData, userId }) {
     drag.target?.releasePointerCapture?.(drag.pointerId);
     if (drag.active) {
       event.preventDefault();
+      reorderItem(itemId, drag.dropIndex ?? drag.fromIndex ?? 0);
       suppressItemClickRef.current = true;
       window.setTimeout(() => {
         suppressItemClickRef.current = false;
@@ -169,6 +207,8 @@ export function PinDetailPage({ data, updateData, userId }) {
     }
     itemDragRef.current = null;
     setDraggingItemId("");
+    setItemDropIndex(null);
+    setItemDragPreview(null);
   }
 
   function deleteItem() {
@@ -332,6 +372,8 @@ export function PinDetailPage({ data, updateData, userId }) {
     navigate(`/locations/${location.id}/images/${image.id}`);
   }
 
+  const visibleItems = getReorderPreviewItems(pin.items, draggingItemId, itemDropIndex);
+
   return (
     <div className="grid gap-5 pb-8">
       <Card>
@@ -373,8 +415,8 @@ export function PinDetailPage({ data, updateData, userId }) {
         {pin.items.length === 0 ? (
           <EmptyState title="No items yet">Add the things stored at this exact pin.</EmptyState>
         ) : (
-          pin.items.map((item) => {
-            const isExpanded = expandedItemIds.has(item.id);
+          visibleItems.map((item) => {
+            const isExpanded = expandedItemIds.has(item.id) && draggingItemId !== item.id;
             const itemName = item.name?.trim() || "Item name";
             return (
             <Card
@@ -382,7 +424,7 @@ export function PinDetailPage({ data, updateData, userId }) {
               ref={(node) => {
                 itemRowRefs.current[item.id] = node;
               }}
-              className={`overflow-hidden p-0 transition ${isExpanded ? "rounded-[1.75rem]" : "rounded-2xl"} ${draggingItemId === item.id ? "scale-[1.01] ring-2 ring-vault-blue/35" : ""}`}
+              className={`overflow-hidden p-0 transition ${isExpanded ? "rounded-[1.75rem]" : "rounded-2xl"} ${draggingItemId === item.id ? "opacity-35 ring-2 ring-vault-blue/30" : ""}`}
             >
               <button
                 type="button"
@@ -556,6 +598,40 @@ export function PinDetailPage({ data, updateData, userId }) {
         onCancel={() => setDeletePhotoId(null)}
         onConfirm={deletePhoto}
       />
+      {itemDragPreview && (
+        <FloatingDragCard preview={itemDragPreview}>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+            <ChevronRight size={19} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-base font-black">{itemDragPreview.label}</span>
+        </FloatingDragCard>
+      )}
+    </div>
+  );
+}
+
+function getReorderPreviewItems(items, draggingId, dropIndex) {
+  if (!draggingId || dropIndex === null || dropIndex === undefined) return items;
+  const dragged = items.find((item) => item.id === draggingId);
+  if (!dragged) return items;
+  const remaining = items.filter((item) => item.id !== draggingId);
+  const next = [...remaining];
+  next.splice(Math.max(0, Math.min(next.length, dropIndex)), 0, dragged);
+  return next;
+}
+
+function FloatingDragCard({ preview, children }) {
+  return (
+    <div
+      className="pointer-events-none fixed z-[80] flex items-center gap-3 rounded-2xl border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
+      style={{
+        left: `${preview.x}px`,
+        top: `${preview.y}px`,
+        width: `${preview.width}px`,
+        minHeight: `${preview.height}px`,
+      }}
+    >
+      {children}
     </div>
   );
 }
