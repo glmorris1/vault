@@ -436,6 +436,7 @@ export function ImageDetailPage({ data, updateData }) {
       )}
 
       <section className="grid gap-3">
+        <h2 className="px-1 text-xl font-black">Pins</h2>
         {image.pins.length === 0 ? (
           <EmptyState icon="pin" title="No pins yet">Tap the photo where something is stored.</EmptyState>
         ) : (
