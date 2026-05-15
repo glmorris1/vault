@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, ListOrdered, LogOut, Mail, Menu, Palette, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Palette, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,6 +15,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
+  const [alphabetized, setAlphabetized] = useState(false);
 
   function toggleMenuSection(sectionId) {
     setOpenMenuSections((current) => {
@@ -126,7 +127,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
 
             <MenuSection
               id="alphabetize"
-              icon={<ListOrdered size={21} />}
+              icon={<span className="text-xs font-black tracking-tight">AZ</span>}
               title="Alphabetize Me!"
               open={openMenuSections.has("alphabetize")}
               onToggle={() => toggleMenuSection("alphabetize")}
@@ -135,11 +136,19 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                 Click this if you, like me, just can't even, and need everything to be alphabetized. We'll put everything in its proper order.
               </p>
               <button
-                className="inline-flex min-h-11 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black tracking-[0.16em] text-white shadow-soft transition active:scale-[0.98]"
-                onClick={onAlphabetize}
+                className={`inline-flex min-h-11 w-fit items-center justify-center rounded-2xl px-5 text-sm font-black tracking-[0.12em] text-white transition ${
+                  alphabetized
+                    ? "translate-y-0.5 bg-emerald-600 shadow-inner"
+                    : "bg-vault-blue shadow-[0_6px_0_rgba(8,74,140,0.35),0_14px_22px_rgba(40,145,220,0.24)] active:translate-y-1 active:shadow-[0_2px_0_rgba(8,74,140,0.35),0_8px_14px_rgba(40,145,220,0.18)]"
+                }`}
+                onClick={() => {
+                  onAlphabetize?.();
+                  setAlphabetized(true);
+                  window.setTimeout(() => setAlphabetized(false), 1800);
+                }}
                 type="button"
               >
-                ABC
+                {alphabetized ? "Alphabetized!" : "ABC"}
               </button>
             </MenuSection>
 
