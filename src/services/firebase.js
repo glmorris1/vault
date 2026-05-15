@@ -7,10 +7,13 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDownloadURL, getStorage, ref, uploadString } from "firebase/storage";
 import { createStarterData } from "../data/storage.js";
+
+export const AI_FREE_USE_LIMIT = 100;
+export const AI_USAGE_STORAGE_KEY = "vault.aiAssistantUses";
 
 const defaultFirebaseConfig = {
   apiKey: "AIzaSyC4AV1Ge2eT9LKcb3TULzGUuEtv_7Hcw6U",
@@ -63,7 +66,10 @@ export function subscribeToAuth(callback) {
     callback(null);
     return () => {};
   }
-  return onAuthStateChanged(activeServices.auth, callback);
+  return onAuthStateChanged(activeServices.auth, (nextUser) => {
+    if (!nextUser) setStoredAIUses(0);
+    callback(nextUser);
+  });
 }
 
 export async function registerUser({ username, email, password }) {
@@ -96,12 +102,15 @@ export function subscribeToVault(userId, onData, onError) {
     vaultRef,
     async (snapshot) => {
       if (snapshot.exists()) {
-        onData(snapshot.data().data || createStarterData());
+        const data = snapshot.data().data || createStarterData();
+        setStoredAIUses(Number(data.aiAssistantUses || 0));
+        onData(data);
         return;
       }
 
       const starterData = createStarterData();
       await setDoc(vaultRef, { data: starterData, updatedAt: serverTimestamp() });
+      setStoredAIUses(0);
       onData(starterData);
     },
     onError,
@@ -110,6 +119,7 @@ export function subscribeToVault(userId, onData, onError) {
 
 export async function saveVaultToCloud(userId, data) {
   const { db } = getServices();
+  setStoredAIUses(Number(data.aiAssistantUses || 0));
   await setDoc(doc(db, "vaults", userId), { data, updatedAt: serverTimestamp() }, { merge: true });
 }
 
@@ -123,7 +133,21 @@ export async function uploadPhotoForUser(userId, imageId, dataUrl) {
 }
 
 export async function analyzePhotoWithAI({ imageId, storagePath, photoDataUrl, photoWidth, photoHeight }) {
-  const { functions } = getServices();
+  const { auth, db, functions } = getServices();
+  const userId = auth.currentUser?.uid;
+  const vaultRef = userId ? doc(db, "vaults", userId) : null;
+
+  if (vaultRef) {
+    const snapshot = await getDoc(vaultRef);
+    const uses = Number(snapshot.data()?.data?.aiAssistantUses || 0);
+    setStoredAIUses(uses);
+    if (uses >= AI_FREE_USE_LIMIT) {
+      const error = new Error("Upgrade to keep using AI");
+      error.code = "resource-exhausted";
+      throw error;
+    }
+  }
+
   const analyze = httpsCallable(functions, "analyzePhotoWithAI");
   const result = await analyze({
     imageId,
@@ -132,6 +156,15 @@ export async function analyzePhotoWithAI({ imageId, storagePath, photoDataUrl, p
     photoWidth,
     photoHeight,
   });
+
+  if (vaultRef) {
+    await updateDoc(vaultRef, {
+      "data.aiAssistantUses": increment(1),
+      updatedAt: serverTimestamp(),
+    });
+    setStoredAIUses(Number(window.localStorage.getItem(AI_USAGE_STORAGE_KEY) || 0) + 1);
+  }
+
   return result.data;
 }
 
@@ -139,4 +172,10 @@ export async function loadExistingVault(userId) {
   const { db } = getServices();
   const snapshot = await getDoc(doc(db, "vaults", userId));
   return snapshot.exists() ? snapshot.data().data : createStarterData();
+}
+
+function setStoredAIUses(uses) {
+  const value = Number.isFinite(uses) ? uses : 0;
+  window.localStorage.setItem(AI_USAGE_STORAGE_KEY, String(value));
+  window.dispatchEvent(new CustomEvent("vault-ai-usage-changed", { detail: { uses: value } }));
 }
