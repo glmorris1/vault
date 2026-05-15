@@ -1,7 +1,7 @@
 import { Button } from "./Button.jsx";
 import { useEffect, useState } from "react";
 
-export function ConfirmDialog({ open, title, message, confirmLabel = "Delete", requireCheckbox = false, checkboxLabel = "OK to delete", onConfirm, onCancel }) {
+export function ConfirmDialog({ open, title, message, confirmLabel = "Delete", requireCheckbox = false, checkboxLabel = "Are you sure?", onConfirm, onCancel }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
