@@ -7,6 +7,7 @@ import { Dashboard } from "./pages/Dashboard.jsx";
 import { LocationPage } from "./pages/LocationPage.jsx";
 import { ImageDetailPage } from "./pages/ImageDetailPage.jsx";
 import { PinDetailPage } from "./pages/PinDetailPage.jsx";
+import { UpgradePage } from "./pages/UpgradePage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
 import { findLocation } from "./data/search.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
@@ -153,6 +154,14 @@ export default function App() {
         element={
           <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
             <PinDetailPage data={data} updateData={updateData} userId={user.uid} />
+          </AppShell>
+        }
+      />
+      <Route
+        path="/upgrade"
+        element={
+          <AppShell title="Upgrade" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
+            <UpgradePage />
           </AppShell>
         }
       />
