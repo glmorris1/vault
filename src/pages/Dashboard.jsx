@@ -88,13 +88,14 @@ export function Dashboard({ data, updateData }) {
           ) : (
             results.map((result) => (
               <Card key={result.id} className="p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  <SearchThumbnail result={result} />
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-black uppercase tracking-wide text-vault-blue">{result.type}</p>
-                    <h2 className="truncate text-lg font-black">{result.title}</h2>
-                    <p className="mt-1 truncate text-sm text-vault-muted">{result.path}</p>
+                    <h2 className="break-words text-lg font-black leading-tight">{result.title}</h2>
+                    <p className="mt-1 max-w-full whitespace-normal break-words text-sm leading-5 text-vault-muted [overflow-wrap:anywhere]">{result.path}</p>
                   </div>
-                  <Link className="rounded-full bg-vault-blue px-4 py-3 text-sm font-bold text-white" to={result.to}>
+                  <Link className="shrink-0 rounded-full bg-vault-blue px-4 py-3 text-sm font-bold text-white" to={result.to} state={result.backTo ? { backTo: result.backTo } : undefined}>
                     Open
                   </Link>
                 </div>
@@ -164,6 +165,22 @@ export function Dashboard({ data, updateData }) {
         onCancel={() => setDeleteId(null)}
         onConfirm={deleteLocation}
       />
+    </div>
+  );
+}
+
+function SearchThumbnail({ result }) {
+  if (result.thumbnailUrl) {
+    return (
+      <div className="size-14 shrink-0 overflow-hidden rounded-2xl bg-pink-50 shadow-sm">
+        <img className="h-full w-full object-cover" src={result.thumbnailUrl} alt="" loading="lazy" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-vault-pink text-xs font-black uppercase text-vault-muted shadow-sm">
+      {result.type.slice(0, 2)}
     </div>
   );
 }
