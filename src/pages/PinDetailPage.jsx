@@ -383,7 +383,7 @@ export function PinDetailPage({ data, updateData, userId }) {
     navigate(`/locations/${location.id}/images/${image.id}`);
   }
 
-  const visibleItems = getReorderPreviewItems(pin.items, draggingItemId, itemDropIndex);
+  const visibleItems = pin.items;
 
   return (
     <div className="grid gap-5 pb-8">
@@ -621,16 +621,6 @@ export function PinDetailPage({ data, updateData, userId }) {
       )}
     </div>
   );
-}
-
-function getReorderPreviewItems(items, draggingId, dropIndex) {
-  if (!draggingId || dropIndex === null || dropIndex === undefined) return items;
-  const dragged = items.find((item) => item.id === draggingId);
-  if (!dragged) return items;
-  const remaining = items.filter((item) => item.id !== draggingId);
-  const next = [...remaining];
-  next.splice(Math.max(0, Math.min(next.length, dropIndex)), 0, dragged);
-  return next;
 }
 
 function getDropIndexFromRects(rects, pointerY) {
