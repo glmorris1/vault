@@ -17,7 +17,7 @@ Add the OpenAI key as a Firebase Secret so it is never exposed to React:
 firebase functions:secrets:set OPENAI_API_KEY
 ```
 
-`OPENAI_MODEL` defaults to `gpt-5.4-mini`. Firebase will prompt for parameter values during deploy if needed.
+The function uses `gpt-4o-mini`, which supports vision inputs and Structured Outputs.
 
 ## Build and Deploy
 
