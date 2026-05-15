@@ -1,15 +1,13 @@
 import { ArrowLeft, Check, Info, LogOut, Menu, Palette, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-
-const lindseyHeadshot = "data:image/jpeg;base64,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";
+import lindseyHeadshot from "../assets/lindsey-headshot-small.jpg";
 
 const themes = [
-  { id: "default", label: "Default" },
-  { id: "pink", label: "Pink" },
+  { id: "default", label: "Default (Pink)" },
   { id: "blue", label: "Blue" },
   { id: "green", label: "Green" },
+  { id: "cream", label: "Cream/Beige" },
 ];
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange }) {
@@ -70,13 +68,13 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                   <button
                     key={item.id}
                     className={`flex min-h-11 items-center justify-between rounded-2xl border px-4 text-sm font-black transition ${
-                      theme === item.id ? "border-vault-blue bg-vault-blue text-white" : "border-rose-100 bg-vault-pink/55 text-vault-ink"
+                      theme === item.id || (theme === "pink" && item.id === "default") ? "border-vault-blue bg-vault-blue text-white" : "border-rose-100 bg-vault-pink/55 text-vault-ink"
                     }`}
                     onClick={() => onThemeChange?.(item.id)}
                     type="button"
                   >
                     {item.label}
-                    {theme === item.id && <Check size={16} />}
+                    {(theme === item.id || (theme === "pink" && item.id === "default")) && <Check size={16} />}
                   </button>
                 ))}
               </div>
