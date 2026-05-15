@@ -40,7 +40,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         loc.id === location.id
           ? {
               ...loc,
-              images: loc.images.map((img) =>
+              images: (loc.images || []).map((img) =>
                 img.id === image.id
                   ? {
                       ...img,
@@ -48,6 +48,17 @@ export function PinDetailPage({ data, updateData, userId }) {
                     }
                   : img,
               ),
+              rooms: (loc.rooms || []).map((room) => ({
+                ...room,
+                images: (room.images || []).map((img) =>
+                  img.id === image.id
+                    ? {
+                        ...img,
+                        pins: img.pins.map((item) => (item.id === pin.id ? updater(item) : item)),
+                      }
+                    : img,
+                ),
+              })),
             }
           : loc,
       ),
@@ -241,7 +252,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         loc.id === location.id
           ? {
               ...loc,
-              images: loc.images.map((img) =>
+              images: (loc.images || []).map((img) =>
                 img.id === image.id
                   ? {
                       ...img,
@@ -249,6 +260,17 @@ export function PinDetailPage({ data, updateData, userId }) {
                     }
                   : img,
               ),
+              rooms: (loc.rooms || []).map((room) => ({
+                ...room,
+                images: (room.images || []).map((img) =>
+                  img.id === image.id
+                    ? {
+                        ...img,
+                        pins: img.pins.filter((item) => item.id !== pin.id),
+                      }
+                    : img,
+                ),
+              })),
             }
           : loc,
       ),
