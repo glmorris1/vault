@@ -232,15 +232,16 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "You are helping organize a home inventory app.",
     "Analyze this image and suggest pin locations for visible storage areas or visible groups of items.",
     dimensions,
-    "Use xPercent and yPercent from 0 to 100, where 0,0 is the top-left of the image and 100,100 is the bottom-right.",
-    "For every suggestion, first mentally locate the full visible bounding rectangle of the target object or storage area.",
-    "Set xPercent to the horizontal midpoint of that rectangle and yPercent to the vertical midpoint of that rectangle.",
+    "Use all coordinate percentages from 0 to 100, where 0,0 is the top-left of the image and 100,100 is the bottom-right.",
+    "For every suggestion, estimate the full visible bounding rectangle of the target object or storage area.",
+    "Set xMinPercent to the left edge of that target, xMaxPercent to the right edge, yMinPercent to the top edge, and yMaxPercent to the bottom edge.",
+    "Set xPercent to the midpoint between xMinPercent and xMaxPercent. Set yPercent to the midpoint between yMinPercent and yMaxPercent.",
     "The coordinate must be the visual center of the object itself, not a corner, edge, label, handle edge, or nearby empty space.",
     "For a drawer, place the pin in the center of the drawer front, often near the drawer pull or handle if that is centered.",
     "For a cabinet, place the pin in the center of the cabinet door or visible cabinet opening.",
     "For a shelf, place the pin in the center of that shelf span or shelf opening.",
     "For a bin, box, appliance, or visible item group, place the pin in the center of its visible body.",
-    "Before returning JSON, self-check each coordinate: if it is left of, right of, above, below, or beside the object, correct it to the object's center.",
+    "Before returning JSON, self-check each rectangle and midpoint: if the midpoint is left of, right of, above, below, or beside the object, correct the rectangle edges so the midpoint lands on the object's center.",
     "Do not place pins beside the object or offset left/down from the object. The pin coordinate should land on the object's visual center.",
     "Suggest a pin for every visible drawer, shelf, cabinet, closet section, bin, box, and meaningful storage surface you can distinguish.",
     "Avoid placing multiple pins tightly clustered next to each other; if several suggested pins would overlap, choose the center of each distinct storage area or merge duplicate suggestions.",
@@ -269,7 +270,20 @@ const analysisSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "label", "type", "xPercent", "yPercent", "confidence", "visibleItems", "notes"],
+        required: [
+          "id",
+          "label",
+          "type",
+          "xPercent",
+          "yPercent",
+          "xMinPercent",
+          "yMinPercent",
+          "xMaxPercent",
+          "yMaxPercent",
+          "confidence",
+          "visibleItems",
+          "notes",
+        ],
         properties: {
           id: {
             type: "string",
@@ -287,6 +301,26 @@ const analysisSchema = {
             maximum: 100,
           },
           yPercent: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          xMinPercent: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          yMinPercent: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          xMaxPercent: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          yMaxPercent: {
             type: "number",
             minimum: 0,
             maximum: 100,
@@ -332,18 +366,30 @@ function normalizeAnalysis(raw: any): AIPhotoAnalysis {
 }
 
 function normalizeSuggestion(raw: any, index: number): AIPhotoSuggestion {
+  const xPercent = midpointFromBounds(raw?.xMinPercent, raw?.xMaxPercent, raw?.xPercent);
+  const yPercent = midpointFromBounds(raw?.yMinPercent, raw?.yMaxPercent, raw?.yPercent);
+
   return {
     id: String(raw?.id || `ai-${index + 1}`),
     label: String(raw?.label || "Suggested pin").slice(0, 80),
     type: ["cabinet", "drawer", "shelf", "bin", "box", "appliance", "closet", "countertop", "other"].includes(raw?.type)
       ? raw.type
       : "other",
-    xPercent: clampNumber(raw?.xPercent, 0, 100),
-    yPercent: clampNumber(raw?.yPercent, 0, 100),
+    xPercent,
+    yPercent,
     confidence: clampNumber(raw?.confidence, 0, 1),
     visibleItems: Array.isArray(raw?.visibleItems) ? raw.visibleItems.map((item: unknown) => String(item).slice(0, 60)).filter(Boolean) : [],
     notes: String(raw?.notes || "Only include what is visible. Do not guess hidden contents.").slice(0, 240),
   };
+}
+
+function midpointFromBounds(minValue: unknown, maxValue: unknown, fallback: unknown) {
+  const min = Number(minValue);
+  const max = Number(maxValue);
+  if (Number.isFinite(min) && Number.isFinite(max)) {
+    return clampNumber((Math.min(min, max) + Math.max(min, max)) / 2, 0, 100);
+  }
+  return clampNumber(fallback, 0, 100);
 }
 
 function readString(value: unknown, fieldName: string) {
