@@ -10,6 +10,8 @@ import { PinDetailPage } from "./pages/PinDetailPage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
 
+const THEME_STORAGE_KEY = "vault-theme";
+
 export default function App() {
   const [data, setData] = useState(loadVault);
   const [onboarded, setOnboarded] = useState(hasSeenOnboarding);
@@ -17,10 +19,16 @@ export default function App() {
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
   const [vaultReady, setVaultReady] = useState(!isFirebaseConfigured);
   const [cloudError, setCloudError] = useState("");
+  const [theme, setTheme] = useState(() => window.localStorage.getItem(THEME_STORAGE_KEY) || "default");
   const saveTimerRef = useRef(null);
   const lastCloudJsonRef = useRef("");
 
   useEffect(() => saveVault(data), [data]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
@@ -108,7 +116,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <AppShell title="Vault" subtitle="Home Organization & Inventory" user={user} onLogout={logoutUser} cloudError={cloudError}>
+          <AppShell title="Vault" subtitle="Home Organization & Inventory" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
             <Dashboard data={data} updateData={updateData} />
           </AppShell>
         }
@@ -116,7 +124,7 @@ export default function App() {
       <Route
         path="/locations/:locationId"
         element={
-          <AppShell title="Location" subtitle="Photos, areas, and storage zones" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
+          <AppShell title="Location" subtitle="Photos, areas, and storage zones" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
             <LocationPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
@@ -124,7 +132,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId"
         element={
-          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
+          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
             <ImageDetailPage data={data} updateData={updateData} />
           </AppShell>
         }
@@ -132,7 +140,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId/pins/:pinId"
         element={
-          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
+          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
             <PinDetailPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
