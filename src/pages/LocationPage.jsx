@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
@@ -11,6 +11,7 @@ import { findLocation } from "../data/search.js";
 import { isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
 
 const PHOTO_UPLOAD_TIMEOUT = 45000;
+const LAST_ROOM_STORAGE_KEY = "vault-last-expanded-room";
 
 export function LocationPage({ data, updateData, userId }) {
   const { locationId } = useParams();
@@ -32,6 +33,16 @@ export function LocationPage({ data, updateData, userId }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const location = findLocation(data, locationId);
+
+  useEffect(() => {
+    if (!location?.id) return;
+    const saved = readLastRoomState();
+    if (saved?.locationId !== location.id || !saved.roomId) return;
+    setExpandedRoomIds((current) => new Set(current).add(saved.roomId));
+    window.setTimeout(() => {
+      roomRowRefs.current[saved.roomId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  }, [location?.id]);
 
   if (!location) {
     return <EmptyState title="Location not found">This location may have been deleted.</EmptyState>;
@@ -343,6 +354,7 @@ export function LocationPage({ data, updateData, userId }) {
                   setDeleteImageRoomId(room.id);
                   setDeleteImageId(imageId);
                 }}
+                onOpenImage={() => saveLastRoomState(location.id, room.id)}
               />
             ))}
 
@@ -389,7 +401,20 @@ export function LocationPage({ data, updateData, userId }) {
   );
 }
 
-function RoomSection({ room, locationId, expanded, uploading, legacy = false, onToggle, onDeleteRoom, onUpload, onRenameImage, onDeleteImage, dragProps }) {
+function RoomSection({
+  room,
+  locationId,
+  expanded,
+  uploading,
+  legacy = false,
+  onToggle,
+  onDeleteRoom,
+  onUpload,
+  onRenameImage,
+  onDeleteImage,
+  onOpenImage,
+  dragProps,
+}) {
   return (
     <Card className={`overflow-hidden p-0 transition ${dragProps?.dragging ? "opacity-35 ring-2 ring-vault-blue/30" : ""}`} ref={dragProps?.setRef}>
       <div
@@ -447,7 +472,7 @@ function RoomSection({ room, locationId, expanded, uploading, legacy = false, on
             <div className="grid grid-cols-2 gap-3">
               {(room.images || []).map((image) => (
                 <Card key={image.id} className="overflow-hidden p-0">
-                  <Link to={`/locations/${locationId}/images/${image.id}`} className="block">
+                  <Link to={`/locations/${locationId}/images/${image.id}`} className="block" onClick={onOpenImage}>
                     <div className="aspect-[4/3] bg-pink-50">
                       <img className="h-full w-full object-cover" src={image.photoDataUrl} alt={image.name} />
                     </div>
@@ -483,6 +508,18 @@ function RoomSection({ room, locationId, expanded, uploading, legacy = false, on
 function getDropIndexFromRects(rects, pointerY) {
   const targetIndex = rects.findIndex((rect) => pointerY < rect.center);
   return targetIndex === -1 ? rects.length : targetIndex;
+}
+
+function saveLastRoomState(locationId, roomId) {
+  window.sessionStorage.setItem(LAST_ROOM_STORAGE_KEY, JSON.stringify({ locationId, roomId }));
+}
+
+function readLastRoomState() {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(LAST_ROOM_STORAGE_KEY) || "null");
+  } catch {
+    return null;
+  }
 }
 
 function FloatingDragCard({ preview, children }) {
