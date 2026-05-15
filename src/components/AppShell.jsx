@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Palette, X } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLayoutEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 
 
@@ -13,6 +13,7 @@ const themes = [
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
   const [alphabetized, setAlphabetized] = useState(false);
@@ -33,6 +34,16 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
     setMenuOpen(false);
     setAlphabetized(false);
   }
+
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname]);
 
   return (
     <div className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 pt-4 sm:px-6">
