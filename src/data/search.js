@@ -42,6 +42,7 @@ export function searchVault(data, rawQuery) {
           type: "Room",
           title: room.name,
           path: `${location.name} -> ${room.name}`,
+          thumbnailUrl: firstRoomImage(room)?.photoDataUrl,
           to: `/locations/${location.id}`,
         });
       }
@@ -54,6 +55,7 @@ export function searchVault(data, rawQuery) {
           type: "Image",
           title: imageLabel(image),
           path: [location.name, room?.name, imageLabel(image)].filter(Boolean).join(" -> "),
+          thumbnailUrl: image.photoDataUrl,
           to: `/locations/${location.id}/images/${image.id}`,
         });
       }
@@ -65,6 +67,8 @@ export function searchVault(data, rawQuery) {
             type: "Pin",
             title: pinLabel(pin),
             path: [location.name, room?.name, imageLabel(image), pinLabel(pin)].filter(Boolean).join(" -> "),
+            thumbnailUrl: image.photoDataUrl,
+            backTo: `/locations/${location.id}/images/${image.id}`,
             to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
           });
         }
@@ -82,6 +86,8 @@ export function searchVault(data, rawQuery) {
               type: "Item",
               title: itemLabel(item, pin, image, location),
               path: [location.name, room?.name, imageLabel(image), pinLabel(pin)].filter(Boolean).join(" -> "),
+              thumbnailUrl: image.photoDataUrl,
+              backTo: `/locations/${location.id}/images/${image.id}`,
               to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
             });
           }
@@ -121,4 +127,8 @@ export function getLocationImages(location) {
     ...(location.images || []).map((image) => ({ image, room: undefined })),
     ...(location.rooms || []).flatMap((room) => (room.images || []).map((image) => ({ image, room }))),
   ];
+}
+
+function firstRoomImage(room) {
+  return (room.images || [])[0];
 }
