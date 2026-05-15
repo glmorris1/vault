@@ -29,6 +29,11 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
     });
   }
 
+  function closeMenu() {
+    setMenuOpen(false);
+    setAlphabetized(false);
+  }
+
   return (
     <div className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 pt-4 sm:px-6">
       <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-white/70 bg-[color-mix(in_srgb,var(--vault-surface)_90%,transparent)] px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
@@ -57,7 +62,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       {cloudError && <p className="mb-4 rounded-2xl bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">{cloudError}</p>}
       {children}
       {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-vault-ink/25 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-vault-ink/25 backdrop-blur-sm" onClick={closeMenu}>
           <aside
             className="safe-bottom ml-auto flex h-full w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
@@ -68,7 +73,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-vault-muted">Menu</p>
                 <h2 className="mt-1 text-2xl font-black text-vault-ink">Vault</h2>
               </div>
-              <button className="grid size-11 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setMenuOpen(false)} aria-label="Close menu">
+              <button className="grid size-11 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={closeMenu} aria-label="Close menu">
                 <X size={20} />
               </button>
             </div>
@@ -156,7 +161,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               <button
                 className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-red-50 px-5 text-base font-black text-red-700 transition active:scale-[0.98]"
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeMenu();
                   onLogout?.();
                 }}
                 type="button"
