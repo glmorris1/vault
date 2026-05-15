@@ -11,6 +11,7 @@ import { findPin } from "../data/search.js";
 import { analyzePhotoWithAI, isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
 
 const PHOTO_UPLOAD_TIMEOUT = 45000;
+const NEW_ITEM_SCROLL_OFFSET = 118;
 
 export function PinDetailPage({ data, updateData, userId }) {
   const { locationId, imageId, pinId } = useParams();
@@ -44,7 +45,10 @@ export function PinDetailPage({ data, updateData, userId }) {
     const itemId = pendingScrollItemRef.current;
     pendingScrollItemRef.current = "";
     window.setTimeout(() => {
-      itemRowRefs.current[itemId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const row = itemRowRefs.current[itemId];
+      if (!row) return;
+      const targetY = row.getBoundingClientRect().top + window.scrollY - NEW_ITEM_SCROLL_OFFSET;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
     }, 80);
   }, [pin.items.length]);
 
