@@ -9,6 +9,7 @@ export function createId(prefix = "id") {
 
 export function createStarterData() {
   return {
+    aiAssistantUses: 0,
     locations: [],
   };
 }
