@@ -1,7 +1,7 @@
 import { Button } from "./Button.jsx";
 import { useEffect, useState } from "react";
 
-export function ConfirmDialog({ open, title, message, confirmLabel = "Delete", requireCheckbox = false, checkboxLabel = "Are you sure?", onConfirm, onCancel }) {
+export function ConfirmDialog({ open, title, message, confirmLabel = "Delete", requireCheckbox = false, onConfirm, onCancel }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Delete", r
         {requireCheckbox && (
           <label className="mt-5 flex items-center gap-3 rounded-2xl bg-red-50 p-3 text-sm font-black text-red-700">
             <input className="size-5 accent-red-600" type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
-            {checkboxLabel}
+            Are you sure?
           </label>
         )}
         <div className="mt-6 grid grid-cols-2 gap-3">
