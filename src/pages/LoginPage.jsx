@@ -38,7 +38,8 @@ export function LoginPage() {
           <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-white text-vault-ink shadow-soft">
             <Archive size={30} />
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-vault-ink">Vault</h1>
+          <h1 className="gold-4 text-4xl font-black">Vault</h1>
+          <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Life. Organized.</p>
           <p className="mt-2 text-base font-medium text-vault-muted">Sign in to keep your home inventory synced.</p>
         </div>
 
