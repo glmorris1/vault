@@ -83,6 +83,10 @@ export default function App() {
     setData((current) => (typeof updater === "function" ? updater(current) : updater));
   }
 
+  function alphabetizeVault() {
+    updateData(alphabetizeVaultData);
+  }
+
   function finishOnboarding() {
     setSeenOnboarding();
     setOnboarded(true);
@@ -117,7 +121,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <AppShell title="Vault" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
+          <AppShell title="Vault" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
             <Dashboard data={data} updateData={updateData} />
           </AppShell>
         }
@@ -132,13 +136,14 @@ export default function App() {
             cloudError={cloudError}
             theme={theme}
             onThemeChange={setTheme}
+            onAlphabetize={alphabetizeVault}
           />
         }
       />
       <Route
         path="/locations/:locationId/images/:imageId"
         element={
-          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
+          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
             <ImageDetailPage data={data} updateData={updateData} />
           </AppShell>
         }
@@ -146,7 +151,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId/pins/:pinId"
         element={
-          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
+          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
             <PinDetailPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
@@ -156,15 +161,60 @@ export default function App() {
   );
 }
 
-function LocationRoute({ data, updateData, user, cloudError, theme, onThemeChange }) {
+function LocationRoute({ data, updateData, user, cloudError, theme, onThemeChange, onAlphabetize }) {
   const { locationId } = useParams();
   const location = findLocation(data, locationId);
 
   return (
-    <AppShell title={location?.name || "Location"} showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={onThemeChange}>
+    <AppShell title={location?.name || "Location"} showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={onThemeChange} onAlphabetize={onAlphabetize}>
       <LocationPage data={data} updateData={updateData} userId={user.uid} />
     </AppShell>
   );
+}
+
+function alphabetizeVaultData(current) {
+  return {
+    ...current,
+    locations: [...(current.locations || [])].map(alphabetizeLocation).sort(compareByName),
+  };
+}
+
+function alphabetizeLocation(location) {
+  return {
+    ...location,
+    images: [...(location.images || [])].map(alphabetizeImage).sort(compareByName),
+    rooms: [...(location.rooms || [])].map(alphabetizeRoom).sort(compareByName),
+  };
+}
+
+function alphabetizeRoom(room) {
+  return {
+    ...room,
+    images: [...(room.images || [])].map(alphabetizeImage).sort(compareByName),
+  };
+}
+
+function alphabetizeImage(image) {
+  return {
+    ...image,
+    pins: [...(image.pins || [])].map(alphabetizePin).sort(compareByName),
+  };
+}
+
+function alphabetizePin(pin) {
+  return {
+    ...pin,
+    photos: [...(pin.photos || [])].sort(compareByName),
+    items: [...(pin.items || [])].sort(compareByName),
+  };
+}
+
+function compareByName(a, b) {
+  return itemName(a).localeCompare(itemName(b), undefined, { sensitivity: "base", numeric: true });
+}
+
+function itemName(item) {
+  return (item?.name || item?.label || "").trim().toLowerCase();
 }
 
 function formatCloudError(error, fallback) {
