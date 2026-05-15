@@ -162,7 +162,7 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     console.error("OpenAI analysis call failed unexpectedly", error);
-    throw new HttpsError("internal", "AI analysis failed unexpectedly. Please try again.");
+    throw new HttpsError("failed-precondition", "OpenAI analysis could not complete. Please try again.");
   }
 }
 
