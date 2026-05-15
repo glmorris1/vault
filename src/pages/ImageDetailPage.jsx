@@ -85,6 +85,7 @@ export function ImageDetailPage({ data, updateData }) {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    document.body.classList.add("is-reordering");
     draggingSuggestionRef.current = { id: suggestionId, startX: event.clientX, startY: event.clientY, moved: false };
   }
 
@@ -106,6 +107,7 @@ export function ImageDetailPage({ data, updateData }) {
     event.preventDefault();
     event.stopPropagation();
     suppressSuggestionClickRef.current = drag.moved;
+    document.body.classList.remove("is-reordering");
     draggingSuggestionRef.current = null;
     window.setTimeout(() => {
       suppressSuggestionClickRef.current = false;
@@ -130,6 +132,7 @@ export function ImageDetailPage({ data, updateData }) {
     const timer = window.setTimeout(() => {
       draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false };
       const pin = image.pins.find((item) => item.id === pinId);
+      document.body.classList.add("is-reordering");
       setDraggingPinId(pinId);
       setDraggingPinLabel(pin?.name?.trim() || "Unnamed");
     }, 350);
@@ -168,6 +171,7 @@ export function ImageDetailPage({ data, updateData }) {
         suppressPinClickRef.current = false;
       }, 0);
     }
+    document.body.classList.remove("is-reordering");
     draggingPinRef.current = null;
     setDraggingPinId("");
     setDraggingPinLabel("");
@@ -275,24 +279,35 @@ export function ImageDetailPage({ data, updateData }) {
       </Card>
 
       <div className="relative overflow-hidden rounded-[2rem] bg-white shadow-soft">
-        <div ref={photoFrameRef} className="relative block w-full touch-manipulation" onClick={placePin} role="button" aria-label="Add pin to image">
+        <div
+          ref={photoFrameRef}
+          className="pin-drag-surface relative block w-full touch-manipulation"
+          onClick={placePin}
+          onContextMenu={(event) => event.preventDefault()}
+          onSelectStart={(event) => event.preventDefault()}
+          role="button"
+          aria-label="Add pin to image"
+        >
           <img
             className="block w-full select-none"
             src={image.photoDataUrl}
             alt={image.name}
             draggable="false"
+            onContextMenu={(event) => event.preventDefault()}
             onLoad={(event) => setPhotoSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           />
           {image.pins.map((pin) => (
             <span
               key={pin.id}
               data-pin
-              className="pin-pop absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center text-white drop-shadow-md"
+              className="pin-marker-handle pin-pop absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center text-white drop-shadow-md"
               style={{ left: `${pin.xPercent}%`, top: `${pin.yPercent}%` }}
               onPointerDown={(event) => startPinPress(event, pin.id)}
               onPointerMove={(event) => dragPin(event, pin.id)}
               onPointerUp={(event) => endPinPress(event, pin.id)}
               onPointerCancel={(event) => endPinPress(event, pin.id)}
+              onContextMenu={(event) => event.preventDefault()}
+              onSelectStart={(event) => event.preventDefault()}
               onClick={(event) => {
                 event.stopPropagation();
                 if (suppressPinClickRef.current) return;
@@ -314,12 +329,14 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={suggestion.id}
               data-pin
-              className="absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center"
+              className="pin-marker-handle absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center"
               style={{ left: `${suggestion.xPercent}%`, top: `${suggestion.yPercent}%` }}
               onPointerDown={(event) => startSuggestionDrag(event, suggestion.id)}
               onPointerMove={(event) => dragSuggestion(event, suggestion.id)}
               onPointerUp={(event) => endSuggestionDrag(event, suggestion.id)}
               onPointerCancel={(event) => endSuggestionDrag(event, suggestion.id)}
+              onContextMenu={(event) => event.preventDefault()}
+              onSelectStart={(event) => event.preventDefault()}
               onClick={(event) => {
                 event.stopPropagation();
                 if (suppressSuggestionClickRef.current) return;
