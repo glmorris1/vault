@@ -60,6 +60,21 @@
   --vault-shadow: 0 18px 48px rgba(47, 127, 89, 0.16);
 }
 
+:root[data-theme="cream"] {
+  --vault-pink: #f7ead8;
+  --vault-rose: #dfc094;
+  --vault-ink: #5f574d;
+  --vault-muted: #8a7660;
+  --vault-blue: #b8863b;
+  --vault-surface: #fffaf2;
+  --vault-panel: #ffffff;
+  --vault-page-start: #fffaf2;
+  --vault-page-mid: #f3dfc4;
+  --vault-page-end: #fffdf8;
+  --vault-focus: #d8b47d;
+  --vault-shadow: 0 18px 48px rgba(143, 106, 62, 0.16);
+}
+
 html,
 body,
 #root {
