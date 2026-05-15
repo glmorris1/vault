@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
-import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { createId, readImageFile } from "../data/storage.js";
 import { findLocation } from "../data/search.js";
@@ -33,6 +32,8 @@ export function LocationPage({ data, updateData, userId }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const location = findLocation(data, locationId);
+  const deleteRoomTarget = (location?.rooms || []).find((room) => room.id === deleteRoomId);
+  const deleteRoomSummary = deleteRoomTarget ? summarizeRoom(deleteRoomTarget) : null;
 
   useEffect(() => {
     if (!location?.id) return;
@@ -98,7 +99,10 @@ export function LocationPage({ data, updateData, userId }) {
           ),
         };
       });
-      if (newImages.length === 1) navigate(`/locations/${location.id}/images/${newImages[0].id}`);
+      if (newImages.length === 1) {
+        if (uploadRoomId) saveLastRoomState(location.id, uploadRoomId);
+        navigate(`/locations/${location.id}/images/${newImages[0].id}`);
+      }
     } catch (error) {
       setUploadError(formatUploadError(error));
     } finally {
@@ -339,7 +343,6 @@ export function LocationPage({ data, updateData, userId }) {
                 onToggle={() => toggleRoom(room.id)}
                 onDeleteRoom={() => setDeleteRoomId(room.id)}
                 onUpload={() => uploadToRoom(room.id)}
-                onRenameImage={renameImage}
                 dragProps={{
                   dragging: draggingRoomId === room.id,
                   setRef: (node) => {
@@ -364,11 +367,6 @@ export function LocationPage({ data, updateData, userId }) {
                 locationId={location.id}
                 expanded
                 legacy
-                onRenameImage={renameImage}
-                onDeleteImage={(imageId) => {
-                  setDeleteImageRoomId("");
-                  setDeleteImageId(imageId);
-                }}
               />
             )}
           </>
@@ -385,7 +383,13 @@ export function LocationPage({ data, updateData, userId }) {
       <ConfirmDialog
         open={Boolean(deleteRoomId)}
         title="Delete room?"
-        message="Photos, pins, and items saved inside this room will also be removed."
+        message={
+          deleteRoomSummary
+            ? `This will delete "${deleteRoomTarget.name}" with ${deleteRoomSummary.images} image${deleteRoomSummary.images === 1 ? "" : "s"}, ${deleteRoomSummary.pins} pin${deleteRoomSummary.pins === 1 ? "" : "s"}, and ${deleteRoomSummary.items} item${deleteRoomSummary.items === 1 ? "" : "s"}.`
+            : "Photos, pins, and items saved inside this room will also be removed."
+        }
+        requireCheckbox
+        checkboxLabel="OK to delete this room"
         onCancel={() => setDeleteRoomId(null)}
         onConfirm={deleteRoom}
       />
@@ -410,8 +414,6 @@ function RoomSection({
   onToggle,
   onDeleteRoom,
   onUpload,
-  onRenameImage,
-  onDeleteImage,
   onOpenImage,
   dragProps,
 }) {
@@ -477,24 +479,12 @@ function RoomSection({
                       <img className="h-full w-full object-cover" src={image.photoDataUrl} alt={image.name} />
                     </div>
                   </Link>
-                  <div className="p-3">
-                    <EditableText
-                      value={image.name}
-                      className="w-full text-base font-black"
-                      inputClassName="text-sm"
-                      placeholder="Name this photo"
-                      emptyValues={["New Area", "image"]}
-                      onSave={(name) => onRenameImage(image.id, name)}
-                    />
+                  <Link to={`/locations/${locationId}/images/${image.id}`} className="block p-3" onClick={onOpenImage}>
+                    <p className={`truncate text-base font-black ${image.name?.trim() ? "text-vault-ink" : "text-vault-muted"}`}>
+                      {image.name?.trim() || "Name this photo"}
+                    </p>
                     <p className="mt-1 text-xs font-medium text-vault-muted">{image.pins.length} pin{image.pins.length === 1 ? "" : "s"}</p>
-                    <button
-                      className="mt-3 inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
-                      onClick={() => onDeleteImage(image.id)}
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  </div>
+                  </Link>
                 </Card>
               ))}
             </div>
@@ -508,6 +498,17 @@ function RoomSection({
 function getDropIndexFromRects(rects, pointerY) {
   const targetIndex = rects.findIndex((rect) => pointerY < rect.center);
   return targetIndex === -1 ? rects.length : targetIndex;
+}
+
+function summarizeRoom(room) {
+  const images = room.images || [];
+  const pins = images.flatMap((image) => image.pins || []);
+  const items = pins.flatMap((pin) => pin.items || []);
+  return {
+    images: images.length,
+    pins: pins.length,
+    items: items.length,
+  };
 }
 
 function saveLastRoomState(locationId, roomId) {
