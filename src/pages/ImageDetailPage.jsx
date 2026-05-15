@@ -1,4 +1,4 @@
-import { Sparkles, Trash2 } from "lucide-react";
+import { Info, Sparkles, Trash2, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -22,8 +22,11 @@ export function ImageDetailPage({ data, updateData }) {
   const [aiSummary, setAiSummary] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
+  const [showTip, setShowTip] = useState(false);
   const photoFrameRef = useRef(null);
+  const draggingPinRef = useRef(null);
   const draggingSuggestionRef = useRef(null);
+  const suppressPinClickRef = useRef(false);
   const suppressSuggestionClickRef = useRef(false);
   const { location, image } = findImage(data, locationId, imageId);
 
@@ -101,6 +104,60 @@ export function ImageDetailPage({ data, updateData }) {
     window.setTimeout(() => {
       suppressSuggestionClickRef.current = false;
     }, 0);
+  }
+
+  function updatePinPosition(pinId, position) {
+    updateImage((current) => ({
+      ...current,
+      pins: current.pins.map((pin) => (pin.id === pinId ? { ...pin, ...position } : pin)),
+    }));
+  }
+
+  function startPinPress(event, pinId) {
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    const timer = window.setTimeout(() => {
+      draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false };
+      target.setPointerCapture?.(pointerId);
+    }, 350);
+    draggingPinRef.current = { id: pinId, startX, startY, active: false, moved: false, timer };
+  }
+
+  function dragPin(event, pinId) {
+    const drag = draggingPinRef.current;
+    if (!drag || drag.id !== pinId) return;
+    if (!drag.active) {
+      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
+        window.clearTimeout(drag.timer);
+        draggingPinRef.current = null;
+      }
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    drag.moved = true;
+    const position = pointerPositionToPercent(event);
+    if (position) updatePinPosition(pinId, position);
+  }
+
+  function endPinPress(event, pinId) {
+    const drag = draggingPinRef.current;
+    if (!drag || drag.id !== pinId) return;
+    window.clearTimeout(drag.timer);
+    if (drag.active) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressPinClickRef.current = true;
+      const position = pointerPositionToPercent(event);
+      if (position) updatePinPosition(pinId, position);
+      window.setTimeout(() => {
+        suppressPinClickRef.current = false;
+      }, 0);
+    }
+    draggingPinRef.current = null;
   }
 
   function renameImage(name) {
@@ -189,7 +246,12 @@ export function ImageDetailPage({ data, updateData }) {
   return (
     <div className="grid gap-5 pb-8">
       <Card>
-        <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name}</p>
+          <button className="grid size-10 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(true)} aria-label="Show pin tip">
+            <Info size={19} />
+          </button>
+        </div>
         <EditableText
           value={image.name}
           className="mt-2 w-full text-3xl font-black tracking-tight"
@@ -212,10 +274,15 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={pin.id}
               data-pin
-              className="pin-pop absolute grid size-10 -translate-x-1/2 -translate-y-full place-items-center text-white drop-shadow-md"
+              className="pin-pop absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center text-white drop-shadow-md"
               style={{ left: `${pin.xPercent}%`, top: `${pin.yPercent}%` }}
+              onPointerDown={(event) => startPinPress(event, pin.id)}
+              onPointerMove={(event) => dragPin(event, pin.id)}
+              onPointerUp={(event) => endPinPress(event, pin.id)}
+              onPointerCancel={(event) => endPinPress(event, pin.id)}
               onClick={(event) => {
                 event.stopPropagation();
+                if (suppressPinClickRef.current) return;
                 navigate(`/locations/${location.id}/images/${image.id}/pins/${pin.id}`);
               }}
               aria-label={`Open ${pin.name || "pin"}`}
@@ -326,6 +393,22 @@ export function ImageDetailPage({ data, updateData }) {
         onCancel={() => setDeletePinId(null)}
         onConfirm={deletePin}
       />
+      {showTip && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-vault-ink/30 p-5 backdrop-blur-sm" onClick={() => setShowTip(false)}>
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold text-vault-ink">Tip</h2>
+              <button className="grid size-10 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(false)} aria-label="Close tip">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="mt-3 text-sm font-semibold leading-6 text-vault-muted">Tip: Press and hold a pin to drag it to a new location.</p>
+            <Button className="mt-5 w-full" variant="secondary" onClick={() => setShowTip(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
