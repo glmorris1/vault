@@ -116,7 +116,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <AppShell title="Vault" subtitle="Home Organization & Inventory" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
+          <AppShell title="Vault" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme}>
             <Dashboard data={data} updateData={updateData} />
           </AppShell>
         }
