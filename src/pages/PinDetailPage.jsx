@@ -147,6 +147,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         offsetX: event.clientX - rect.left,
         offsetY: event.clientY - rect.top,
       };
+      document.body.classList.add("is-reordering");
       setDraggingItemId(itemId);
       setItemDropIndex(fromIndex);
       setItemDragPreview({
@@ -166,13 +167,12 @@ export function PinDetailPage({ data, updateData, userId }) {
     const drag = itemDragRef.current;
     if (!drag || drag.id !== itemId) return;
     if (!drag.active) {
-      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
-        window.clearTimeout(drag.timer);
-        itemDragRef.current = null;
-      }
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
     event.preventDefault();
+    event.stopPropagation();
     const visibleItems = pin.items.filter((item) => item.id !== itemId);
     const targetIndex = visibleItems.findIndex((item) => {
       const rect = itemRowRefs.current[item.id]?.getBoundingClientRect();
@@ -205,6 +205,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         suppressItemClickRef.current = false;
       }, 0);
     }
+    document.body.classList.remove("is-reordering");
     itemDragRef.current = null;
     setDraggingItemId("");
     setItemDropIndex(null);
@@ -428,12 +429,14 @@ export function PinDetailPage({ data, updateData, userId }) {
             >
               <button
                 type="button"
-                className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
+                className="drag-reorder-row flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
                 onClick={() => toggleItemExpanded(item.id)}
                 onPointerDown={(event) => startItemPress(event, item.id)}
                 onPointerMove={(event) => dragItem(event, item.id)}
                 onPointerUp={(event) => endItemPress(event, item.id)}
                 onPointerCancel={(event) => endItemPress(event, item.id)}
+                onContextMenu={(event) => event.preventDefault()}
+                onSelectStart={(event) => event.preventDefault()}
                 aria-expanded={isExpanded}
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
@@ -623,7 +626,7 @@ function getReorderPreviewItems(items, draggingId, dropIndex) {
 function FloatingDragCard({ preview, children }) {
   return (
     <div
-      className="pointer-events-none fixed z-[80] flex items-center gap-3 rounded-2xl border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
+      className="drag-reorder-row pointer-events-none fixed z-[80] flex items-center gap-3 rounded-2xl border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
       style={{
         left: `${preview.x}px`,
         top: `${preview.y}px`,
