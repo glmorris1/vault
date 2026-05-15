@@ -35,13 +35,25 @@ export function searchVault(data, rawQuery) {
       });
     }
 
-    location.images.forEach((image) => {
+    (location.rooms || []).forEach((room) => {
+      if (includes(room.name, query)) {
+        results.push({
+          id: `room-${room.id}`,
+          type: "Room",
+          title: room.name,
+          path: `${location.name} -> ${room.name}`,
+          to: `/locations/${location.id}`,
+        });
+      }
+    });
+
+    getLocationImages(location).forEach(({ image, room }) => {
       if (includes(image.name, query)) {
         results.push({
           id: `image-${image.id}`,
           type: "Image",
           title: imageLabel(image),
-          path: `${location.name} -> ${imageLabel(image)}`,
+          path: [location.name, room?.name, imageLabel(image)].filter(Boolean).join(" -> "),
           to: `/locations/${location.id}/images/${image.id}`,
         });
       }
@@ -52,7 +64,7 @@ export function searchVault(data, rawQuery) {
             id: `pin-${pin.id}`,
             type: "Pin",
             title: pinLabel(pin),
-            path: `${location.name} -> ${imageLabel(image)} -> ${pinLabel(pin)}`,
+            path: [location.name, room?.name, imageLabel(image), pinLabel(pin)].filter(Boolean).join(" -> "),
             to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
           });
         }
@@ -69,7 +81,7 @@ export function searchVault(data, rawQuery) {
               id: `item-${item.id}`,
               type: "Item",
               title: itemLabel(item, pin, image, location),
-              path: `${location.name} -> ${imageLabel(image)} -> ${pinLabel(pin)}`,
+              path: [location.name, room?.name, imageLabel(image), pinLabel(pin)].filter(Boolean).join(" -> "),
               to: `/locations/${location.id}/images/${image.id}/pins/${pin.id}`,
             });
           }
@@ -87,10 +99,26 @@ export function findLocation(data, locationId) {
 
 export function findImage(data, locationId, imageId) {
   const location = findLocation(data, locationId);
-  return { location, image: location?.images.find((image) => image.id === imageId) };
+  if (!location) return { location, image: undefined, room: undefined };
+  const legacyImage = (location.images || []).find((image) => image.id === imageId);
+  if (legacyImage) return { location, image: legacyImage, room: undefined };
+
+  for (const room of location.rooms || []) {
+    const image = (room.images || []).find((item) => item.id === imageId);
+    if (image) return { location, image, room };
+  }
+
+  return { location, image: undefined, room: undefined };
 }
 
 export function findPin(data, locationId, imageId, pinId) {
   const { location, image } = findImage(data, locationId, imageId);
   return { location, image, pin: image?.pins.find((pin) => pin.id === pinId) };
+}
+
+export function getLocationImages(location) {
+  return [
+    ...(location.images || []).map((image) => ({ image, room: undefined })),
+    ...(location.rooms || []).flatMap((room) => (room.images || []).map((image) => ({ image, room }))),
+  ];
 }
