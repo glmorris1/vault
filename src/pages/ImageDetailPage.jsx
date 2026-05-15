@@ -41,7 +41,11 @@ export function ImageDetailPage({ data, updateData }) {
         loc.id === location.id
           ? {
               ...loc,
-              images: loc.images.map((img) => (img.id === image.id ? updater(img) : img)),
+              images: (loc.images || []).map((img) => (img.id === image.id ? updater(img) : img)),
+              rooms: (loc.rooms || []).map((room) => ({
+                ...room,
+                images: (room.images || []).map((img) => (img.id === image.id ? updater(img) : img)),
+              })),
             }
           : loc,
       ),
@@ -51,7 +55,6 @@ export function ImageDetailPage({ data, updateData }) {
   function placePin(event) {
     if (event.target.closest("[data-pin]")) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    // Store pin coordinates as percentages so markers survive responsive image resizing.
     const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
     const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
     const pin = {
