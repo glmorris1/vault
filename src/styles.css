@@ -114,12 +114,37 @@ textarea {
   font: inherit;
 }
 
+button,
+button * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 .tap-highlight {
   -webkit-tap-highlight-color: transparent;
+}
+
+.drag-reorder-row,
+.drag-reorder-row * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.drag-reorder-row {
+  touch-action: none;
+}
+
+body.is-reordering,
+body.is-reordering * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .pin-pop {
