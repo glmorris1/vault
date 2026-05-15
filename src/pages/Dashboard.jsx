@@ -67,7 +67,7 @@ export function Dashboard({ data, updateData }) {
             <input
               className="min-h-12 rounded-2xl border border-rose-100 bg-white px-4 text-base font-semibold outline-none focus:border-vault-rose"
               value={locationName}
-              placeholder="Room, closet, cabinet..."
+              placeholder="Home, Office, Storage..."
               autoFocus
               onChange={(event) => setLocationName(event.target.value)}
             />
@@ -103,7 +103,7 @@ export function Dashboard({ data, updateData }) {
       ) : (
         <section className="grid gap-4">
           {data.locations.length === 0 ? (
-            <EmptyState title="No locations yet">Add your first room, cabinet, closet, or storage area.</EmptyState>
+            <EmptyState title="No locations yet">Add your first location, Home, Office, Grandma's House, storage area, etc.</EmptyState>
           ) : (
             data.locations.map((location) => (
               <Card
