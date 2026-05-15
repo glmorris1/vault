@@ -162,6 +162,7 @@ export function LocationPage({ data, updateData, userId }) {
         offsetX: event.clientX - rect.left,
         offsetY: event.clientY - rect.top,
       };
+      document.body.classList.add("is-reordering");
       setDraggingRoomId(roomId);
       setRoomDropIndex(fromIndex);
       setRoomDragPreview({
@@ -169,8 +170,8 @@ export function LocationPage({ data, updateData, userId }) {
         label: room?.name || "Room",
         width: rect.width,
         height: rect.height,
-        x: rect.left,
-        y: rect.top,
+        x: event.clientX - (event.clientX - rect.left),
+        y: event.clientY - (event.clientY - rect.top),
       });
       suppressRoomClickRef.current = true;
     }, 350);
@@ -181,13 +182,12 @@ export function LocationPage({ data, updateData, userId }) {
     const drag = roomDragRef.current;
     if (!drag || drag.id !== roomId) return;
     if (!drag.active) {
-      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
-        window.clearTimeout(drag.timer);
-        roomDragRef.current = null;
-      }
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
     event.preventDefault();
+    event.stopPropagation();
     drag.moved = true;
     const visibleRooms = (location.rooms || []).filter((room) => room.id !== roomId);
     const targetIndex = visibleRooms.findIndex((room) => {
@@ -221,6 +221,7 @@ export function LocationPage({ data, updateData, userId }) {
         suppressRoomClickRef.current = false;
       }, 0);
     }
+    document.body.classList.remove("is-reordering");
     roomDragRef.current = null;
     setDraggingRoomId("");
     setRoomDropIndex(null);
@@ -382,11 +383,13 @@ function RoomSection({ room, locationId, expanded, uploading, legacy = false, on
   return (
     <Card className={`overflow-hidden p-0 transition ${dragProps?.dragging ? "opacity-35 ring-2 ring-vault-blue/30" : ""}`} ref={dragProps?.setRef}>
       <div
-        className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
+        className="drag-reorder-row flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
         onPointerDown={legacy ? undefined : dragProps?.onPointerDown}
         onPointerMove={legacy ? undefined : dragProps?.onPointerMove}
         onPointerUp={legacy ? undefined : dragProps?.onPointerUp}
         onPointerCancel={legacy ? undefined : dragProps?.onPointerCancel}
+        onContextMenu={legacy ? undefined : (event) => event.preventDefault()}
+        onSelectStart={legacy ? undefined : (event) => event.preventDefault()}
       >
         <button
           type="button"
@@ -480,7 +483,7 @@ function getReorderPreviewRooms(rooms, draggingId, dropIndex) {
 function FloatingDragCard({ preview, children }) {
   return (
     <div
-      className="pointer-events-none fixed z-[80] flex items-center gap-3 rounded-[1.75rem] border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
+      className="drag-reorder-row pointer-events-none fixed z-[80] flex items-center gap-3 rounded-[1.75rem] border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
       style={{
         left: `${preview.x}px`,
         top: `${preview.y}px`,
