@@ -1,19 +1,31 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
 import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
-import { createId } from "../data/storage.js";
+import { createId, readImageFile } from "../data/storage.js";
 import { findPin } from "../data/search.js";
+import { analyzePhotoWithAI, isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
 
-export function PinDetailPage({ data, updateData }) {
+const PHOTO_UPLOAD_TIMEOUT = 45000;
+
+export function PinDetailPage({ data, updateData, userId }) {
   const { locationId, imageId, pinId } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [deleteItemId, setDeleteItemId] = useState(null);
   const [deletePinOpen, setDeletePinOpen] = useState(false);
+  const [deletePhotoId, setDeletePhotoId] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState("");
+  const [aiPhotoId, setAiPhotoId] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [suggestedItems, setSuggestedItems] = useState([]);
   const { location, image, pin } = findPin(data, locationId, imageId, pinId);
 
   if (!location || !image || !pin) {
@@ -42,17 +54,21 @@ export function PinDetailPage({ data, updateData }) {
   }
 
   function addItem() {
+    addItems([""]);
+  }
+
+  function addItems(names) {
     updatePin((current) => ({
       ...current,
       items: [
         ...current.items,
-        {
+        ...names.map((name) => ({
           id: createId("item"),
-          name: "",
+          name,
           notes: "",
           quantity: "",
           estimatedValue: "",
-        },
+        })),
       ],
     }));
   }
@@ -82,6 +98,108 @@ export function PinDetailPage({ data, updateData }) {
       items: current.items.filter((item) => item.id !== deleteItemId),
     }));
     setDeleteItemId(null);
+  }
+
+  async function handlePhotoUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setUploadingPhoto(true);
+    setPhotoUploadError("");
+    const newPhotos = [];
+    try {
+      for (const file of files) {
+        const photoId = createId("pinphoto");
+        const compressedDataUrl = await readImageFile(file);
+        let photoDataUrl = compressedDataUrl;
+        let storagePath = "";
+
+        if (userId && isFirebaseConfigured) {
+          const uploaded = await withTimeout(
+            uploadPhotoForUser(userId, photoId, compressedDataUrl),
+            PHOTO_UPLOAD_TIMEOUT,
+            "Photo upload timed out. Check Firebase Storage rules and try again.",
+          );
+          photoDataUrl = uploaded.downloadUrl;
+          storagePath = uploaded.storagePath;
+        }
+
+        newPhotos.push({
+          id: photoId,
+          name: "",
+          photoDataUrl,
+          storagePath,
+        });
+      }
+
+      updatePin((current) => ({ ...current, photos: [...(current.photos || []), ...newPhotos] }));
+    } catch (error) {
+      setPhotoUploadError(formatUploadError(error));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
+  function renamePhoto(photoId, name) {
+    updatePin((current) => ({
+      ...current,
+      photos: (current.photos || []).map((photo) => (photo.id === photoId ? { ...photo, name } : photo)),
+    }));
+  }
+
+  function deletePhoto() {
+    updatePin((current) => ({
+      ...current,
+      photos: (current.photos || []).filter((photo) => photo.id !== deletePhotoId),
+    }));
+    if (aiPhotoId === deletePhotoId) cancelAISuggestions();
+    setDeletePhotoId(null);
+  }
+
+  async function requestAISuggestions(photo) {
+    setAiPhotoId(photo.id);
+    setAiLoading(true);
+    setAiError("");
+    setAiSummary("");
+    setSuggestedItems([]);
+    try {
+      const analysis = await analyzePhotoWithAI({
+        imageId: photo.id,
+        storagePath: photo.storagePath,
+        photoDataUrl: photo.photoDataUrl,
+      });
+      const nextItems = collectVisibleItems(analysis);
+      setAiSummary(analysis?.summary || "");
+      setSuggestedItems(nextItems.map((name) => ({ id: createId("aiitem"), name })));
+    } catch (error) {
+      setAiError(formatAIError(error));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function updateSuggestedItem(id, patch) {
+    setSuggestedItems((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function deleteSuggestedItem(id) {
+    setSuggestedItems((current) => current.filter((item) => item.id !== id));
+  }
+
+  function acceptSelectedItems() {
+    const names = suggestedItems.map((item) => item.name.trim()).filter((name, index, all) => name && all.indexOf(name) === index);
+    if (names.length === 0) return;
+    addItems(names);
+    cancelAISuggestions();
+  }
+
+  function cancelAISuggestions() {
+    setAiPhotoId("");
+    setAiLoading(false);
+    setAiError("");
+    setAiSummary("");
+    setSuggestedItems([]);
   }
 
   function deletePin() {
@@ -198,6 +316,95 @@ export function PinDetailPage({ data, updateData }) {
         )}
       </section>
 
+      <section className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black">Detail photos</h2>
+            <p className="text-sm text-vault-muted">Add an open drawer, cabinet, or shelf photo.</p>
+          </div>
+          <Button variant="pin" onClick={() => fileInputRef.current?.click()}>
+            <Camera size={19} />
+            Add
+          </Button>
+        </div>
+        <input ref={fileInputRef} className="hidden" type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoUpload} />
+        {uploadingPhoto && <p className="rounded-2xl bg-white/75 p-3 text-sm font-bold text-vault-muted">Saving photo...</p>}
+        {photoUploadError && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold leading-6 text-red-700">{photoUploadError}</p>}
+
+        {(pin.photos || []).length === 0 ? (
+          <EmptyState icon="camera" title="No detail photos yet">Take a close-up photo of what is inside this storage spot.</EmptyState>
+        ) : (
+          <div className="grid gap-3">
+            {(pin.photos || []).map((photo) => (
+              <Card key={photo.id} className="overflow-hidden p-0">
+                <div className="aspect-[4/3] bg-pink-50">
+                  <img className="h-full w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.name || "Detail photo"} />
+                </div>
+                <div className="grid gap-3 p-3">
+                  <EditableText
+                    value={photo.name}
+                    className="w-full text-base font-black"
+                    inputClassName="text-sm"
+                    placeholder="Name this detail photo"
+                    emptyValues={["image", "New Area"]}
+                    onSave={(name) => renamePhoto(photo.id, name)}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button className="min-h-11 rounded-xl px-3 text-sm" variant="secondary" onClick={() => requestAISuggestions(photo)} disabled={aiLoading}>
+                      <Sparkles size={16} />
+                      {aiLoading && aiPhotoId === photo.id ? "Analyzing..." : "Use AI"}
+                    </Button>
+                    <Button className="min-h-11 rounded-xl px-3 text-sm" variant="danger" onClick={() => setDeletePhotoId(photo.id)}>
+                      <Trash2 size={16} />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {(aiError || aiSummary || suggestedItems.length > 0) && (
+        <Card className="grid gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black">AI item suggestions</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-vault-muted">Review suggested items before adding them to this pin.</p>
+            </div>
+            <Sparkles className="shrink-0 text-vault-blue" size={24} />
+          </div>
+          {aiError && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold leading-6 text-red-700">{aiError}</p>}
+          {aiSummary && <p className="rounded-2xl bg-blue-50 p-3 text-sm font-semibold leading-6 text-vault-ink">{aiSummary}</p>}
+          {suggestedItems.length > 0 && (
+            <div className="grid gap-2">
+              {suggestedItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2">
+                  <input
+                    className="min-h-11 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 text-sm font-semibold outline-none focus:border-vault-rose"
+                    value={item.name}
+                    placeholder="Suggested item"
+                    onChange={(event) => updateSuggestedItem(item.id, { name: event.target.value })}
+                  />
+                  <button className="grid size-11 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => deleteSuggestedItem(item.id)} aria-label="Delete suggestion">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Button className="min-h-11 rounded-xl px-3 text-sm" variant="pin" onClick={acceptSelectedItems}>
+                  Accept all
+                </Button>
+                <Button className="min-h-11 rounded-xl px-3 text-sm" variant="soft" onClick={cancelAISuggestions}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
       <ConfirmDialog
         open={Boolean(deleteItemId)}
         title="Delete item?"
@@ -212,6 +419,53 @@ export function PinDetailPage({ data, updateData }) {
         onCancel={() => setDeletePinOpen(false)}
         onConfirm={deletePin}
       />
+      <ConfirmDialog
+        open={Boolean(deletePhotoId)}
+        title="Delete detail photo?"
+        message="This removes the close-up photo from this pin."
+        onCancel={() => setDeletePhotoId(null)}
+        onConfirm={deletePhoto}
+      />
     </div>
   );
+}
+
+function collectVisibleItems(analysis) {
+  const names = [];
+  (analysis?.suggestions || []).forEach((suggestion) => {
+    (suggestion.visibleItems || []).forEach((item) => names.push(String(item).trim()));
+  });
+  return names.filter((name, index, all) => name && all.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index);
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
+
+function formatUploadError(error) {
+  const message = error?.message || "Photo could not be saved.";
+  if (message.includes("storage/unauthorized") || message.includes("permission")) {
+    return "Photo upload was blocked by Firebase Storage rules. Allow signed-in users to write their own /users/{uid}/images files.";
+  }
+  if (message.includes("storage/unknown") || message.includes("storage/retry-limit-exceeded")) {
+    return "Photo upload could not reach Firebase Storage. Check that Storage is enabled for this Firebase project.";
+  }
+  return message;
+}
+
+function formatAIError(error) {
+  const code = error?.code ? String(error.code).replace("functions/", "") : "";
+  const message = error?.message || error?.details || "AI analysis failed. Please try again.";
+  if (message.includes("unauthenticated")) return "Please sign in before using AI photo analysis.";
+  if (message.includes("not-found")) return "This photo could not be found in secure storage.";
+  if (message.includes("permission-denied")) return "This photo does not belong to the current signed-in user.";
+  if (code === "internal" || message === "internal") {
+    return "The AI server returned an internal error. Please check the Firebase Function logs for analyzePhotoWithAI.";
+  }
+  return message.replace("FirebaseError: ", "");
 }
