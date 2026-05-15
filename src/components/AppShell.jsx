@@ -1,7 +1,6 @@
-import { ArrowLeft, Check, Info, LogOut, Menu, Palette, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Palette, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import lindseyHeadshot from "../assets/lindsey-headshot-small.jpg";
 
 const themes = [
   { id: "default", label: "Default (Pink)" },
@@ -13,6 +12,19 @@ const themes = [
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
+
+  function toggleMenuSection(sectionId) {
+    setOpenMenuSections((current) => {
+      const next = new Set(current);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 pt-4 sm:px-6">
@@ -58,12 +70,14 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               </button>
             </div>
 
-            <section className="mt-6 border-t border-rose-100 py-5">
-              <div className="flex items-center gap-3 text-lg font-black text-vault-ink">
-                <Palette size={21} />
-                Theme
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+            <MenuSection
+              className="mt-6"
+              icon={<Palette size={21} />}
+              title="Theme"
+              open={openMenuSections.has("theme")}
+              onToggle={() => toggleMenuSection("theme")}
+            >
+              <div className="grid grid-cols-2 gap-2">
                 {themes.map((item) => (
                   <button
                     key={item.id}
@@ -78,20 +92,32 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                   </button>
                 ))}
               </div>
-            </section>
+            </MenuSection>
 
-            <section className="border-t border-rose-100 py-5">
-              <div className="flex items-center gap-3 text-lg font-black text-vault-ink">
-                <Info size={21} />
-                About
-              </div>
-              <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-vault-pink/60">
-                <img className="h-44 w-full object-cover" src={lindseyHeadshot} alt="Lindsey Morris" />
-              </div>
-              <p className="mt-4 text-sm font-semibold leading-6 text-vault-muted">
+            <MenuSection
+              icon={<Info size={21} />}
+              title="About"
+              open={openMenuSections.has("about")}
+              onToggle={() => toggleMenuSection("about")}
+            >
+              <p className="text-sm font-semibold leading-6 text-vault-muted">
                 Vault was created by Lindsey Morris to help people organize their homes, workspaces, and lives by making it easier to remember where everything belongs.
               </p>
-            </section>
+            </MenuSection>
+
+            <MenuSection
+              icon={<Mail size={21} />}
+              title="Contact"
+              open={openMenuSections.has("contact")}
+              onToggle={() => toggleMenuSection("contact")}
+            >
+              <a
+                className="flex min-h-12 items-center rounded-2xl bg-vault-pink/55 px-4 text-sm font-black text-vault-ink transition active:scale-[0.98]"
+                href="mailto:sakurasimplicityllc@gmail.com"
+              >
+                sakurasimplicityllc@gmail.com
+              </a>
+            </MenuSection>
 
             <div className="mt-auto border-t border-rose-100 pt-5">
               <button
@@ -110,5 +136,25 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
         </div>
       )}
     </div>
+  );
+}
+
+function MenuSection({ icon, title, open, onToggle, children, className = "" }) {
+  return (
+    <section className={`border-t border-rose-100 py-3 ${className}`}>
+      <button
+        type="button"
+        className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-1 text-left text-lg font-black text-vault-ink transition active:scale-[0.99]"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">{icon}</span>
+        <span className="min-w-0 flex-1">{title}</span>
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-vault-pink/70 text-vault-muted">
+          {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </span>
+      </button>
+      {open && <div className="grid gap-3 pb-2 pt-3">{children}</div>}
+    </section>
   );
 }
