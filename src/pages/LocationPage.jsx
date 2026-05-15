@@ -16,8 +16,13 @@ export function LocationPage({ data, updateData, userId }) {
   const { locationId } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const roomDragRef = useRef(null);
+  const roomRowRefs = useRef({});
+  const suppressRoomClickRef = useRef(false);
   const [deleteImageId, setDeleteImageId] = useState(null);
   const [deleteImageRoomId, setDeleteImageRoomId] = useState("");
+  const [deleteRoomId, setDeleteRoomId] = useState(null);
+  const [draggingRoomId, setDraggingRoomId] = useState("");
   const [addingRoom, setAddingRoom] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [expandedRoomIds, setExpandedRoomIds] = useState(() => new Set());
@@ -101,6 +106,7 @@ export function LocationPage({ data, updateData, userId }) {
   }
 
   function toggleRoom(roomId) {
+    if (suppressRoomClickRef.current) return;
     setExpandedRoomIds((current) => {
       const next = new Set(current);
       if (next.has(roomId)) {
@@ -115,6 +121,69 @@ export function LocationPage({ data, updateData, userId }) {
   function uploadToRoom(roomId) {
     setUploadRoomId(roomId);
     fileInputRef.current?.click();
+  }
+
+  function reorderRoom(roomId, targetIndex) {
+    updateLocation((current) => {
+      const rooms = [...(current.rooms || [])];
+      const from = rooms.findIndex((room) => room.id === roomId);
+      if (from < 0) return current;
+      const boundedTarget = Math.max(0, Math.min(rooms.length - 1, targetIndex));
+      if (from === boundedTarget) return current;
+      const [room] = rooms.splice(from, 1);
+      rooms.splice(boundedTarget, 0, room);
+      return { ...current, rooms };
+    });
+  }
+
+  function startRoomPress(event, roomId) {
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    target.setPointerCapture?.(pointerId);
+    const timer = window.setTimeout(() => {
+      roomDragRef.current = { id: roomId, startX, startY, active: true, moved: false, target, pointerId };
+      setDraggingRoomId(roomId);
+      suppressRoomClickRef.current = true;
+    }, 350);
+    roomDragRef.current = { id: roomId, startX, startY, active: false, moved: false, timer, target, pointerId };
+  }
+
+  function dragRoom(event, roomId) {
+    const drag = roomDragRef.current;
+    if (!drag || drag.id !== roomId) return;
+    if (!drag.active) {
+      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
+        window.clearTimeout(drag.timer);
+        roomDragRef.current = null;
+      }
+      return;
+    }
+    event.preventDefault();
+    drag.moved = true;
+    const rooms = location.rooms || [];
+    const targetIndex = rooms.findIndex((room) => {
+      const rect = roomRowRefs.current[room.id]?.getBoundingClientRect();
+      return rect && event.clientY < rect.top + rect.height / 2;
+    });
+    reorderRoom(roomId, targetIndex === -1 ? rooms.length - 1 : targetIndex);
+  }
+
+  function endRoomPress(event, roomId) {
+    const drag = roomDragRef.current;
+    if (!drag || drag.id !== roomId) return;
+    window.clearTimeout(drag.timer);
+    drag.target?.releasePointerCapture?.(drag.pointerId);
+    if (drag.active) {
+      event.preventDefault();
+      suppressRoomClickRef.current = true;
+      window.setTimeout(() => {
+        suppressRoomClickRef.current = false;
+      }, 0);
+    }
+    roomDragRef.current = null;
+    setDraggingRoomId("");
   }
 
   function renameImage(imageId, name) {
@@ -142,6 +211,19 @@ export function LocationPage({ data, updateData, userId }) {
     setDeleteImageRoomId("");
   }
 
+  function deleteRoom() {
+    updateLocation((current) => ({
+      ...current,
+      rooms: (current.rooms || []).filter((room) => room.id !== deleteRoomId),
+    }));
+    setExpandedRoomIds((current) => {
+      const next = new Set(current);
+      next.delete(deleteRoomId);
+      return next;
+    });
+    setDeleteRoomId(null);
+  }
+
   return (
     <div className="grid gap-5 pb-8">
       {addingRoom ? (
@@ -156,7 +238,7 @@ export function LocationPage({ data, updateData, userId }) {
             <input
               className="min-h-12 rounded-2xl border border-rose-100 bg-white px-4 text-base font-semibold outline-none focus:border-vault-rose"
               value={roomName}
-              placeholder="Kitchen, Garage, Bedroom..."
+              placeholder="Home office, Bedroom, Garage..."
               autoFocus
               onChange={(event) => setRoomName(event.target.value)}
             />
@@ -172,10 +254,6 @@ export function LocationPage({ data, updateData, userId }) {
         </Button>
       )}
 
-      <Button className="hidden" onClick={() => fileInputRef.current?.click()}>
-        <Plus size={22} />
-        {uploading ? "Saving photo..." : "Add image or take photo"}
-      </Button>
       {uploadError && <p className="rounded-2xl bg-red-50 p-4 text-sm font-semibold leading-6 text-red-700">{uploadError}</p>}
       <input ref={fileInputRef} className="hidden" type="file" accept="image/*" capture="environment" multiple onChange={handleImageUpload} />
 
@@ -194,8 +272,19 @@ export function LocationPage({ data, updateData, userId }) {
                 expanded={expandedRoomIds.has(room.id)}
                 uploading={uploading && uploadRoomId === room.id}
                 onToggle={() => toggleRoom(room.id)}
+                onDeleteRoom={() => setDeleteRoomId(room.id)}
                 onUpload={() => uploadToRoom(room.id)}
                 onRenameImage={renameImage}
+                dragProps={{
+                  dragging: draggingRoomId === room.id,
+                  setRef: (node) => {
+                    roomRowRefs.current[room.id] = node;
+                  },
+                  onPointerDown: (event) => startRoomPress(event, room.id),
+                  onPointerMove: (event) => dragRoom(event, room.id),
+                  onPointerUp: (event) => endRoomPress(event, room.id),
+                  onPointerCancel: (event) => endRoomPress(event, room.id),
+                }}
                 onDeleteImage={(imageId) => {
                   setDeleteImageRoomId(room.id);
                   setDeleteImageId(imageId);
@@ -227,27 +316,56 @@ export function LocationPage({ data, updateData, userId }) {
         onCancel={() => setDeleteImageId(null)}
         onConfirm={deleteImage}
       />
+      <ConfirmDialog
+        open={Boolean(deleteRoomId)}
+        title="Delete room?"
+        message="Photos, pins, and items saved inside this room will also be removed."
+        onCancel={() => setDeleteRoomId(null)}
+        onConfirm={deleteRoom}
+      />
     </div>
   );
 }
 
-function RoomSection({ room, locationId, expanded, uploading, legacy = false, onToggle, onUpload, onRenameImage, onDeleteImage }) {
+function RoomSection({ room, locationId, expanded, uploading, legacy = false, onToggle, onDeleteRoom, onUpload, onRenameImage, onDeleteImage, dragProps }) {
   return (
-    <Card className="overflow-hidden p-0">
-      <button
-        type="button"
+    <Card className={`overflow-hidden p-0 transition ${dragProps?.dragging ? "scale-[1.01] ring-2 ring-vault-blue/35" : ""}`} ref={dragProps?.setRef}>
+      <div
         className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
-        onClick={legacy ? undefined : onToggle}
-        aria-label={legacy ? room.name : expanded ? `Collapse ${room.name}` : `Expand ${room.name}`}
-        aria-expanded={expanded}
+        onPointerDown={legacy ? undefined : dragProps?.onPointerDown}
+        onPointerMove={legacy ? undefined : dragProps?.onPointerMove}
+        onPointerUp={legacy ? undefined : dragProps?.onPointerUp}
+        onPointerCancel={legacy ? undefined : dragProps?.onPointerCancel}
       >
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-3 py-2 text-left"
+          onClick={legacy ? undefined : onToggle}
+          aria-label={legacy ? room.name : expanded ? `Collapse ${room.name}` : `Expand ${room.name}`}
+          aria-expanded={expanded}
+        >
+          {!legacy && (
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+              {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-lg font-black">{room.name}</span>
+        </button>
         {!legacy && (
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
-            {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
-          </span>
+          <button
+            type="button"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-red-50 text-red-700"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteRoom?.();
+            }}
+            aria-label={`Delete ${room.name}`}
+          >
+            <Trash2 size={17} />
+          </button>
         )}
-        <span className="min-w-0 flex-1 truncate text-lg font-black">{room.name}</span>
-      </button>
+      </div>
 
       {expanded && (
         <div className="grid gap-3 border-t border-rose-100/70 p-3">
