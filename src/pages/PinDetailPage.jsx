@@ -396,15 +396,6 @@ export function PinDetailPage({ data, updateData, userId }) {
           emptyValues={["New Pin"]}
           onSave={(name) => updatePin((current) => ({ ...current, name }))}
         />
-        <label className="mt-5 block">
-          <span className="text-sm font-bold text-vault-muted">Pin notes</span>
-          <textarea
-            className="mt-2 min-h-24 w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 outline-none focus:border-vault-rose"
-            value={pin.notes || ""}
-            placeholder="Optional notes about this storage spot"
-            onChange={(event) => updatePin((current) => ({ ...current, notes: event.target.value }))}
-          />
-        </label>
         <Button className="mt-4 w-full" variant="danger" onClick={() => setDeletePinOpen(true)}>
           <Trash2 size={18} />
           Delete pin
