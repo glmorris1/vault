@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Camera, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -26,6 +26,7 @@ export function PinDetailPage({ data, updateData, userId }) {
   const [aiError, setAiError] = useState("");
   const [aiSummary, setAiSummary] = useState("");
   const [suggestedItems, setSuggestedItems] = useState([]);
+  const [expandedItemIds, setExpandedItemIds] = useState(() => new Set());
   const { location, image, pin } = findPin(data, locationId, imageId, pinId);
 
   if (!location || !image || !pin) {
@@ -54,7 +55,21 @@ export function PinDetailPage({ data, updateData, userId }) {
   }
 
   function addItem() {
-    addItems([""]);
+    const itemId = createId("item");
+    updatePin((current) => ({
+      ...current,
+      items: [
+        ...current.items,
+        {
+          id: itemId,
+          name: "",
+          notes: "",
+          quantity: "",
+          estimatedValue: "",
+        },
+      ],
+    }));
+    setExpandedItemIds((current) => new Set(current).add(itemId));
   }
 
   function addItems(names) {
@@ -97,7 +112,24 @@ export function PinDetailPage({ data, updateData, userId }) {
       ...current,
       items: current.items.filter((item) => item.id !== deleteItemId),
     }));
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      next.delete(deleteItemId);
+      return next;
+    });
     setDeleteItemId(null);
+  }
+
+  function toggleItemExpanded(itemId) {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
   }
 
   async function handlePhotoUpload(event) {
@@ -171,7 +203,7 @@ export function PinDetailPage({ data, updateData, userId }) {
       });
       const nextItems = collectVisibleItems(analysis);
       setAiSummary(analysis?.summary || "");
-      setSuggestedItems(nextItems.map((name) => ({ id: createId("aiitem"), name })));
+      setSuggestedItems(nextItems.map((name) => ({ id: createId("aiitem"), name, selected: true })));
     } catch (error) {
       setAiError(formatAIError(error));
     } finally {
@@ -265,54 +297,76 @@ export function PinDetailPage({ data, updateData, userId }) {
         {pin.items.length === 0 ? (
           <EmptyState title="No items yet">Add the things stored at this exact pin.</EmptyState>
         ) : (
-          pin.items.map((item, index) => (
-            <Card key={item.id} className="grid gap-3 p-4">
-              <div className="flex items-start gap-3">
-                <input
-                  className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
-                  value={item.name === "New item" ? "" : item.name}
-                  placeholder="Item name"
-                  onChange={(event) => updateItem(item.id, { name: event.target.value })}
-                />
-                <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => setDeleteItemId(item.id)} aria-label="Delete item">
-                  <Trash2 size={18} />
+          pin.items.map((item, index) => {
+            const isExpanded = expandedItemIds.has(item.id);
+            const itemName = item.name?.trim() || "Item name";
+            return (
+              <Card key={item.id} className={`overflow-hidden p-0 transition ${isExpanded ? "rounded-[1.75rem]" : "rounded-2xl"}`}>
+                <button
+                  type="button"
+                  className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
+                  onClick={() => toggleItemExpanded(item.id)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+                    {isExpanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+                  </span>
+                  <span className={`min-w-0 flex-1 truncate text-base font-black ${item.name?.trim() ? "text-vault-ink" : "text-vault-muted"}`}>
+                    {itemName}
+                  </span>
                 </button>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
-                  value={item.quantity || ""}
-                  placeholder="Quantity"
-                  onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
-                />
-                <input
-                  className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
-                  value={item.estimatedValue || ""}
-                  placeholder="Est. value"
-                  onChange={(event) => updateItem(item.id, { estimatedValue: event.target.value })}
-                />
-              </div>
+                {isExpanded && (
+                  <div className="grid gap-3 border-t border-rose-100/70 p-4 pt-3">
+                    <div className="flex items-start gap-3">
+                      <input
+                        className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
+                        value={item.name === "New item" ? "" : item.name}
+                        placeholder="Item name"
+                        onChange={(event) => updateItem(item.id, { name: event.target.value })}
+                      />
+                      <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => setDeleteItemId(item.id)} aria-label="Delete item">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
 
-              <textarea
-                className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
-                value={item.notes || ""}
-                placeholder="Notes"
-                onChange={(event) => updateItem(item.id, { notes: event.target.value })}
-              />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+                        value={item.quantity || ""}
+                        placeholder="Quantity"
+                        onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
+                      />
+                      <input
+                        className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+                        value={item.estimatedValue || ""}
+                        placeholder="Est. value"
+                        onChange={(event) => updateItem(item.id, { estimatedValue: event.target.value })}
+                      />
+                    </div>
 
-              <div className="flex gap-2">
-                <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === 0} onClick={() => moveItem(item.id, -1)}>
-                  <ArrowUp size={16} />
-                  Up
-                </Button>
-                <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === pin.items.length - 1} onClick={() => moveItem(item.id, 1)}>
-                  <ArrowDown size={16} />
-                  Down
-                </Button>
-              </div>
-            </Card>
-          ))
+                    <textarea
+                      className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
+                      value={item.notes || ""}
+                      placeholder="Notes"
+                      onChange={(event) => updateItem(item.id, { notes: event.target.value })}
+                    />
+
+                    <div className="flex gap-2">
+                      <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === 0} onClick={() => moveItem(item.id, -1)}>
+                        <ArrowUp size={16} />
+                        Up
+                      </Button>
+                      <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === pin.items.length - 1} onClick={() => moveItem(item.id, 1)}>
+                        <ArrowDown size={16} />
+                        Down
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })
         )}
       </section>
 
