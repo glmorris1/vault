@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -16,7 +16,11 @@ export function PinDetailPage({ data, updateData, userId }) {
   const { locationId, imageId, pinId } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const itemDragRef = useRef(null);
+  const itemRowRefs = useRef({});
+  const suppressItemClickRef = useRef(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
+  const [draggingItemId, setDraggingItemId] = useState("");
   const [deletePinOpen, setDeletePinOpen] = useState(false);
   const [deletePhotoId, setDeletePhotoId] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -106,16 +110,65 @@ export function PinDetailPage({ data, updateData, userId }) {
     }));
   }
 
-  function moveItem(itemId, direction) {
+  function reorderItem(itemId, targetIndex) {
     updatePin((current) => {
       const items = [...current.items];
       const from = items.findIndex((item) => item.id === itemId);
-      const to = from + direction;
-      if (from < 0 || to < 0 || to >= items.length) return current;
+      if (from < 0) return current;
+      const to = Math.max(0, Math.min(items.length - 1, targetIndex));
+      if (from === to) return current;
       const [item] = items.splice(from, 1);
       items.splice(to, 0, item);
       return { ...current, items };
     });
+  }
+
+  function startItemPress(event, itemId) {
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    target.setPointerCapture?.(pointerId);
+    const timer = window.setTimeout(() => {
+      itemDragRef.current = { id: itemId, startX, startY, active: true, target, pointerId };
+      setDraggingItemId(itemId);
+      suppressItemClickRef.current = true;
+    }, 350);
+    itemDragRef.current = { id: itemId, startX, startY, active: false, timer, target, pointerId };
+  }
+
+  function dragItem(event, itemId) {
+    const drag = itemDragRef.current;
+    if (!drag || drag.id !== itemId) return;
+    if (!drag.active) {
+      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
+        window.clearTimeout(drag.timer);
+        itemDragRef.current = null;
+      }
+      return;
+    }
+    event.preventDefault();
+    const targetIndex = pin.items.findIndex((item) => {
+      const rect = itemRowRefs.current[item.id]?.getBoundingClientRect();
+      return rect && event.clientY < rect.top + rect.height / 2;
+    });
+    reorderItem(itemId, targetIndex === -1 ? pin.items.length - 1 : targetIndex);
+  }
+
+  function endItemPress(event, itemId) {
+    const drag = itemDragRef.current;
+    if (!drag || drag.id !== itemId) return;
+    window.clearTimeout(drag.timer);
+    drag.target?.releasePointerCapture?.(drag.pointerId);
+    if (drag.active) {
+      event.preventDefault();
+      suppressItemClickRef.current = true;
+      window.setTimeout(() => {
+        suppressItemClickRef.current = false;
+      }, 0);
+    }
+    itemDragRef.current = null;
+    setDraggingItemId("");
   }
 
   function deleteItem() {
@@ -132,6 +185,7 @@ export function PinDetailPage({ data, updateData, userId }) {
   }
 
   function toggleItemExpanded(itemId) {
+    if (suppressItemClickRef.current) return;
     setExpandedItemIds((current) => {
       const next = new Set(current);
       if (next.has(itemId)) {
@@ -319,74 +373,74 @@ export function PinDetailPage({ data, updateData, userId }) {
         {pin.items.length === 0 ? (
           <EmptyState title="No items yet">Add the things stored at this exact pin.</EmptyState>
         ) : (
-          pin.items.map((item, index) => {
+          pin.items.map((item) => {
             const isExpanded = expandedItemIds.has(item.id);
             const itemName = item.name?.trim() || "Item name";
             return (
-              <Card key={item.id} className={`overflow-hidden p-0 transition ${isExpanded ? "rounded-[1.75rem]" : "rounded-2xl"}`}>
-                <button
-                  type="button"
-                  className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
-                  onClick={() => toggleItemExpanded(item.id)}
-                  aria-expanded={isExpanded}
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
-                    {isExpanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
-                  </span>
-                  <span className={`min-w-0 flex-1 truncate text-base font-black ${item.name?.trim() ? "text-vault-ink" : "text-vault-muted"}`}>
-                    {itemName}
-                  </span>
+            <Card
+              key={item.id}
+              ref={(node) => {
+                itemRowRefs.current[item.id] = node;
+              }}
+              className={`overflow-hidden p-0 transition ${isExpanded ? "rounded-[1.75rem]" : "rounded-2xl"} ${draggingItemId === item.id ? "scale-[1.01] ring-2 ring-vault-blue/35" : ""}`}
+            >
+              <button
+                type="button"
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
+                onClick={() => toggleItemExpanded(item.id)}
+                onPointerDown={(event) => startItemPress(event, item.id)}
+                onPointerMove={(event) => dragItem(event, item.id)}
+                onPointerUp={(event) => endItemPress(event, item.id)}
+                onPointerCancel={(event) => endItemPress(event, item.id)}
+                aria-expanded={isExpanded}
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+                  {isExpanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+                </span>
+                <span className={`min-w-0 flex-1 truncate text-base font-black ${item.name?.trim() ? "text-vault-ink" : "text-vault-muted"}`}>
+                  {itemName}
+                </span>
+              </button>
+
+              {isExpanded && (
+                <div className="grid gap-3 border-t border-rose-100/70 p-4 pt-3">
+                  <div className="flex items-start gap-3">
+                <input
+                  className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
+                  value={item.name === "New item" ? "" : item.name}
+                  placeholder="Item name"
+                  onChange={(event) => updateItem(item.id, { name: event.target.value })}
+                />
+                <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => setDeleteItemId(item.id)} aria-label="Delete item">
+                  <Trash2 size={18} />
                 </button>
+              </div>
 
-                {isExpanded && (
-                  <div className="grid gap-3 border-t border-rose-100/70 p-4 pt-3">
-                    <div className="flex items-start gap-3">
-                      <input
-                        className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
-                        value={item.name === "New item" ? "" : item.name}
-                        placeholder="Item name"
-                        onChange={(event) => updateItem(item.id, { name: event.target.value })}
-                      />
-                      <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => setDeleteItemId(item.id)} aria-label="Delete item">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2">
+                <input
+                  className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+                  value={item.quantity || ""}
+                  placeholder="Quantity"
+                  onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
+                />
+                <input
+                  className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
+                  value={item.estimatedValue || ""}
+                  placeholder="Est. value"
+                  onChange={(event) => updateItem(item.id, { estimatedValue: event.target.value })}
+                />
+              </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
-                        value={item.quantity || ""}
-                        placeholder="Quantity"
-                        onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
-                      />
-                      <input
-                        className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
-                        value={item.estimatedValue || ""}
-                        placeholder="Est. value"
-                        onChange={(event) => updateItem(item.id, { estimatedValue: event.target.value })}
-                      />
-                    </div>
+                  <textarea
+                className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
+                value={item.notes || ""}
+                placeholder="Notes"
+                onChange={(event) => updateItem(item.id, { notes: event.target.value })}
+              />
 
-                    <textarea
-                      className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
-                      value={item.notes || ""}
-                      placeholder="Notes"
-                      onChange={(event) => updateItem(item.id, { notes: event.target.value })}
-                    />
-
-                    <div className="flex gap-2">
-                      <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === 0} onClick={() => moveItem(item.id, -1)}>
-                        <ArrowUp size={16} />
-                        Up
-                      </Button>
-                      <Button className="min-h-10 flex-1 rounded-xl px-3 text-sm" variant="secondary" disabled={index === pin.items.length - 1} onClick={() => moveItem(item.id, 1)}>
-                        <ArrowDown size={16} />
-                        Down
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
+                </div>
+              )}
+            </Card>
             );
           })
         )}
