@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { logger } from "firebase-functions";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import type { AIPhotoAnalysis, AIPhotoSuggestion } from "./types";
@@ -28,21 +29,30 @@ export const analyzePhotoWithAI = onCall(
       if (!uid) {
         throw new HttpsError("unauthenticated", "Sign in before using AI photo analysis.");
       }
+      logger.info("analyzePhotoWithAI started", { uid });
 
       const imageId = readString(request.data?.imageId, "imageId");
       const storagePath = readString(request.data?.storagePath, "storagePath");
       const photoWidth = readOptionalNumber(request.data?.photoWidth);
       const photoHeight = readOptionalNumber(request.data?.photoHeight);
+      logger.info("analyzePhotoWithAI request parsed", { uid, imageId, storagePath, photoWidth, photoHeight });
 
       if (!storagePath.startsWith(`users/${uid}/images/`)) {
         throw new HttpsError("permission-denied", "This photo does not belong to the signed-in user.");
       }
 
       await verifyPhotoIsInUserVault(uid, imageId, storagePath);
+      logger.info("analyzePhotoWithAI ownership verified", { uid, imageId });
 
       const file = getStorage().bucket(STORAGE_BUCKET).file(storagePath);
       const [metadata] = await file.getMetadata().catch(() => {
         throw new HttpsError("not-found", "Photo was not found in Firebase Storage.");
+      });
+      logger.info("analyzePhotoWithAI storage metadata loaded", {
+        uid,
+        imageId,
+        size: metadata.size,
+        contentType: metadata.contentType,
       });
 
       const size = Number(metadata.size || 0);
@@ -51,10 +61,16 @@ export const analyzePhotoWithAI = onCall(
       }
 
       const [imageBuffer] = await file.download();
+      logger.info("analyzePhotoWithAI image downloaded", { uid, imageId, bytes: imageBuffer.byteLength });
       const contentType = metadata.contentType || "image/jpeg";
       const dataUrl = `data:${contentType};base64,${imageBuffer.toString("base64")}`;
 
       const analysis = await callOpenAI(dataUrl, photoWidth, photoHeight);
+      logger.info("analyzePhotoWithAI OpenAI analysis returned", {
+        uid,
+        imageId,
+        suggestions: analysis.suggestions.length,
+      });
 
       await saveAIAnalysis(uid, {
         imageId,
@@ -64,11 +80,12 @@ export const analyzePhotoWithAI = onCall(
         model: OPENAI_MODEL,
         analysis,
       });
+      logger.info("analyzePhotoWithAI completed", { uid, imageId });
 
       return analysis;
     } catch (error) {
       if (error instanceof HttpsError) throw error;
-      console.error("analyzePhotoWithAI unexpected failure", error);
+      logger.error("analyzePhotoWithAI unexpected failure", error);
       throw new HttpsError("failed-precondition", "AI analysis could not start on the server. Please try again.");
     }
   },
@@ -85,7 +102,7 @@ async function saveAIAnalysis(uid: string, record: Record<string, unknown>) {
         createdAt: FieldValue.serverTimestamp(),
       });
   } catch (error) {
-    console.error("AI analysis audit write failed", error);
+    logger.error("AI analysis audit write failed", error);
   }
 }
 
@@ -113,6 +130,7 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
   }
 
   try {
+    logger.info("OpenAI analysis request starting", { model: OPENAI_MODEL });
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -149,10 +167,12 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error("OpenAI analysis HTTP error", { status: response.status, errorText: errorText.slice(0, 1000) });
       throw new HttpsError("failed-precondition", readableOpenAIError(errorText));
     }
 
     const payload = await response.json();
+    logger.info("OpenAI analysis response received");
     const outputText = extractOutputText(payload);
     if (!outputText) {
       throw new HttpsError("data-loss", "AI analysis returned no readable suggestions. Please try another photo.");
@@ -161,7 +181,7 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
     return normalizeAnalysis(safeParseAnalysis(outputText));
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    console.error("OpenAI analysis call failed unexpectedly", error);
+    logger.error("OpenAI analysis call failed unexpectedly", error);
     throw new HttpsError("failed-precondition", "OpenAI analysis could not complete. Please try again.");
   }
 }
@@ -170,7 +190,7 @@ function safeParseAnalysis(outputText: string) {
   try {
     return JSON.parse(outputText);
   } catch (error) {
-    console.error("AI analysis JSON parse failed", error, outputText.slice(0, 500));
+    logger.error("AI analysis JSON parse failed", error, { outputPreview: outputText.slice(0, 500) });
     throw new HttpsError("data-loss", "AI returned unreadable suggestions. Please try another photo.");
   }
 }
