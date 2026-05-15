@@ -116,14 +116,22 @@ async function verifyPhotoIsInUserVault(uid: string, imageId: string, storagePat
         photos?: Array<{ id?: string; storagePath?: string }>;
       }>;
     }>;
+    rooms?: Array<{
+      images?: Array<{
+        id?: string;
+        storagePath?: string;
+        pins?: Array<{
+          photos?: Array<{ id?: string; storagePath?: string }>;
+        }>;
+      }>;
+    }>;
   }> = snapshot.data()?.data?.locations;
   if (!Array.isArray(locations)) {
     throw new HttpsError("not-found", "No Vault data was found for this user.");
   }
 
   const ownsPhoto = locations.some((location) =>
-    Array.isArray(location.images) &&
-    location.images.some((image) => {
+    getAllLocationImages(location).some((image) => {
       if (image?.id === imageId && image?.storagePath === storagePath) return true;
       return image?.pins?.some((pin) =>
         pin.photos?.some((photo) => photo?.id === imageId && photo?.storagePath === storagePath),
@@ -134,6 +142,28 @@ async function verifyPhotoIsInUserVault(uid: string, imageId: string, storagePat
   if (!ownsPhoto) {
     throw new HttpsError("permission-denied", "This photo is not registered in the signed-in user's Vault.");
   }
+}
+
+function getAllLocationImages(location: {
+  images?: Array<{
+    id?: string;
+    storagePath?: string;
+    pins?: Array<{ photos?: Array<{ id?: string; storagePath?: string }> }>;
+  }>;
+  rooms?: Array<{
+    images?: Array<{
+      id?: string;
+      storagePath?: string;
+      pins?: Array<{ photos?: Array<{ id?: string; storagePath?: string }> }>;
+    }>;
+  }>;
+}) {
+  return [
+    ...(Array.isArray(location.images) ? location.images : []),
+    ...(Array.isArray(location.rooms)
+      ? location.rooms.flatMap((room) => (Array.isArray(room.images) ? room.images : []))
+      : []),
+  ];
 }
 
 async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight?: number): Promise<AIPhotoAnalysis> {
