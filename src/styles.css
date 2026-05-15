@@ -61,18 +61,18 @@
 }
 
 :root[data-theme="cream"] {
-  --vault-pink: #f7ead8;
-  --vault-rose: #dfc094;
-  --vault-ink: #5f574d;
-  --vault-muted: #8a7660;
-  --vault-blue: #b8863b;
-  --vault-surface: #fffaf2;
+  --vault-pink: #fff4e6;
+  --vault-rose: #f3d7b5;
+  --vault-ink: #5d6066;
+  --vault-muted: #7f7b73;
+  --vault-blue: #8aa7d6;
+  --vault-surface: #fffdf7;
   --vault-panel: #ffffff;
-  --vault-page-start: #fffaf2;
-  --vault-page-mid: #f3dfc4;
-  --vault-page-end: #fffdf8;
-  --vault-focus: #d8b47d;
-  --vault-shadow: 0 18px 48px rgba(143, 106, 62, 0.16);
+  --vault-page-start: #fffdf7;
+  --vault-page-mid: #fbf0df;
+  --vault-page-end: #fffefa;
+  --vault-focus: #efd4af;
+  --vault-shadow: 0 18px 48px rgba(135, 119, 91, 0.13);
 }
 
 html,
