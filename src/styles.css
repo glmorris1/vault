@@ -140,6 +140,24 @@ button * {
   touch-action: none;
 }
 
+.pin-drag-surface,
+.pin-drag-surface *,
+.pin-marker-handle,
+.pin-marker-handle * {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pin-drag-surface img {
+  pointer-events: none;
+}
+
+.pin-marker-handle {
+  touch-action: none;
+}
+
 body.is-reordering,
 body.is-reordering * {
   -webkit-touch-callout: none;
