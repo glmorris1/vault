@@ -23,6 +23,7 @@ export function ImageDetailPage({ data, updateData }) {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
   const [showTip, setShowTip] = useState(false);
+  const [deleteImageOpen, setDeleteImageOpen] = useState(false);
   const [draggingPinId, setDraggingPinId] = useState("");
   const [draggingPinLabel, setDraggingPinLabel] = useState("");
   const photoFrameRef = useRef(null);
@@ -180,6 +181,26 @@ export function ImageDetailPage({ data, updateData }) {
     updateImage((current) => ({ ...current, name }));
   }
 
+  function deleteImage() {
+    updateData((current) => ({
+      ...current,
+      locations: current.locations.map((loc) =>
+        loc.id === location.id
+          ? {
+              ...loc,
+              images: (loc.images || []).filter((img) => img.id !== image.id),
+              rooms: (loc.rooms || []).map((room) => ({
+                ...room,
+                images: (room.images || []).filter((img) => img.id !== image.id),
+              })),
+            }
+          : loc,
+      ),
+    }));
+    setDeleteImageOpen(false);
+    navigate(`/locations/${location.id}`);
+  }
+
   function deletePin() {
     updateImage((current) => ({
       ...current,
@@ -264,9 +285,14 @@ export function ImageDetailPage({ data, updateData }) {
       <Card>
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-wide text-vault-muted">{location.name}</p>
-          <button className="grid size-10 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(true)} aria-label="Show pin tip">
-            <Info size={19} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button className="grid size-10 place-items-center rounded-full bg-vault-pink text-vault-ink" onClick={() => setShowTip(true)} aria-label="Show pin tip">
+              <Info size={19} />
+            </button>
+            <button className="grid size-10 place-items-center rounded-full bg-red-50 text-red-700" onClick={() => setDeleteImageOpen(true)} aria-label="Delete image">
+              <Trash2 size={18} />
+            </button>
+          </div>
         </div>
         <EditableText
           value={image.name}
@@ -427,6 +453,15 @@ export function ImageDetailPage({ data, updateData }) {
         message="Items saved at this pin will also be removed."
         onCancel={() => setDeletePinId(null)}
         onConfirm={deletePin}
+      />
+      <ConfirmDialog
+        open={deleteImageOpen}
+        title="Delete image?"
+        message={`This will delete this image with ${image.pins.length} pin${image.pins.length === 1 ? "" : "s"} and ${countImageItems(image)} item${countImageItems(image) === 1 ? "" : "s"}.`}
+        requireCheckbox
+        checkboxLabel="OK to delete this image"
+        onCancel={() => setDeleteImageOpen(false)}
+        onConfirm={deleteImage}
       />
       {showTip && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-vault-ink/30 p-5 backdrop-blur-sm" onClick={() => setShowTip(false)}>
@@ -622,6 +657,10 @@ function splitItems(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function countImageItems(image) {
+  return (image.pins || []).reduce((total, pin) => total + (pin.items || []).length, 0);
 }
 
 function formatAIError(error) {
