@@ -133,7 +133,7 @@ export default function App() {
         path="/locations/:locationId/images/:imageId/pins/:pinId"
         element={
           <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError}>
-            <PinDetailPage data={data} updateData={updateData} />
+            <PinDetailPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
       />
