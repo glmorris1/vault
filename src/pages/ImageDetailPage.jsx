@@ -169,7 +169,7 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={pin.id}
               data-pin
-              className="pin-pop absolute grid size-9 -translate-x-1/2 -translate-y-full place-items-center text-white drop-shadow-md"
+              className="pin-pop absolute grid size-10 -translate-x-1/2 -translate-y-full place-items-center text-white drop-shadow-md"
               style={{ left: `${pin.xPercent}%`, top: `${pin.yPercent}%` }}
               onClick={(event) => {
                 event.stopPropagation();
@@ -185,7 +185,7 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={suggestion.id}
               data-pin
-              className="absolute grid size-9 -translate-x-1/2 -translate-y-full place-items-center"
+              className="absolute grid size-10 -translate-x-1/2 -translate-y-full place-items-center"
               style={{ left: `${suggestion.xPercent}%`, top: `${suggestion.yPercent}%` }}
               onClick={(event) => {
                 event.stopPropagation();
@@ -393,7 +393,7 @@ function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }
 
 function PinMarker() {
   return (
-    <svg className="h-[42px] w-[34px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
+    <svg className="h-[46px] w-[37px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
       <defs>
         <radialGradient id="pinGlow" cx="50%" cy="38%" r="62%">
           <stop offset="0%" stopColor="#60bdff" />
@@ -419,7 +419,7 @@ function PinMarker() {
 
 function SuggestedPinMarker({ selected }) {
   return (
-    <svg className="h-[42px] w-[34px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
+    <svg className="h-[46px] w-[37px] overflow-visible drop-shadow-md" viewBox="0 0 84 104" aria-hidden="true">
       <path
         d="M42 100C38 91 8 56 8 35C8 15.67 23.67 0 43 0C62.33 0 78 15.67 78 35C78 56 46 91 42 100ZM43 20a15 15 0 1 0 0 30a15 15 0 0 0 0-30Z"
         fill={selected ? "#7c3aed" : "#38bdf8"}
