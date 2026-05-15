@@ -19,7 +19,6 @@ export function PinDetailPage({ data, updateData, userId }) {
   const itemDragRef = useRef(null);
   const itemRowRefs = useRef({});
   const suppressItemClickRef = useRef(false);
-  const [deleteItemId, setDeleteItemId] = useState(null);
   const [draggingItemId, setDraggingItemId] = useState("");
   const [itemDropIndex, setItemDropIndex] = useState(null);
   const [itemDragPreview, setItemDragPreview] = useState(null);
@@ -222,17 +221,16 @@ export function PinDetailPage({ data, updateData, userId }) {
     setItemDragPreview(null);
   }
 
-  function deleteItem() {
+  function deleteItem(itemId) {
     updatePin((current) => ({
       ...current,
-      items: current.items.filter((item) => item.id !== deleteItemId),
+      items: current.items.filter((item) => item.id !== itemId),
     }));
     setExpandedItemIds((current) => {
       const next = new Set(current);
-      next.delete(deleteItemId);
+      next.delete(itemId);
       return next;
     });
-    setDeleteItemId(null);
   }
 
   function toggleItemExpanded(itemId) {
@@ -457,7 +455,7 @@ export function PinDetailPage({ data, updateData, userId }) {
                   placeholder="Item name"
                   onChange={(event) => updateItem(item.id, { name: event.target.value })}
                 />
-                <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => setDeleteItemId(item.id)} aria-label="Delete item">
+                <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => deleteItem(item.id)} aria-label="Delete item">
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -581,13 +579,6 @@ export function PinDetailPage({ data, updateData, userId }) {
         </Card>
       )}
 
-      <ConfirmDialog
-        open={Boolean(deleteItemId)}
-        title="Delete item?"
-        message="This item will be removed from the pin inventory."
-        onCancel={() => setDeleteItemId(null)}
-        onConfirm={deleteItem}
-      />
       <ConfirmDialog
         open={deletePinOpen}
         title="Delete pin?"
