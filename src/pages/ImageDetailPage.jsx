@@ -482,8 +482,8 @@ export function ImageDetailPage({ data, updateData }) {
               const end = event.changedTouches[0]?.clientX;
               tipTouchStartRef.current = null;
               if (start === null || end === undefined) return;
-              if (end - start > 35) setTipIndex((current) => Math.min(IMAGE_TIPS.length - 1, current + 1));
-              if (start - end > 35) setTipIndex((current) => Math.max(0, current - 1));
+              if (start - end > 35) setTipIndex((current) => Math.min(IMAGE_TIPS.length - 1, current + 1));
+              if (end - start > 35) setTipIndex((current) => Math.max(0, current - 1));
             }}
           >
             <div className="flex items-start justify-between gap-3">
