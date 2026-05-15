@@ -135,6 +135,20 @@ export function PinDetailPage({ data, updateData, userId }) {
       const rect = target.getBoundingClientRect();
       const fromIndex = pin.items.findIndex((item) => item.id === itemId);
       const item = pin.items[fromIndex];
+      const dropRects = pin.items
+        .filter((entry) => entry.id !== itemId)
+        .map((entry) => {
+          const rowRect = itemRowRefs.current[entry.id]?.getBoundingClientRect();
+          return rowRect
+            ? {
+                id: entry.id,
+                top: rowRect.top + window.scrollY,
+                bottom: rowRect.bottom + window.scrollY,
+                center: rowRect.top + window.scrollY + rowRect.height / 2,
+              }
+            : null;
+        })
+        .filter(Boolean);
       itemDragRef.current = {
         id: itemId,
         startX,
@@ -144,6 +158,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         pointerId,
         fromIndex,
         dropIndex: fromIndex,
+        dropRects,
         offsetX: event.clientX - rect.left,
         offsetY: event.clientY - rect.top,
       };
@@ -173,12 +188,7 @@ export function PinDetailPage({ data, updateData, userId }) {
     }
     event.preventDefault();
     event.stopPropagation();
-    const visibleItems = pin.items.filter((item) => item.id !== itemId);
-    const targetIndex = visibleItems.findIndex((item) => {
-      const rect = itemRowRefs.current[item.id]?.getBoundingClientRect();
-      return rect && event.clientY < rect.top + rect.height / 2;
-    });
-    const nextDropIndex = targetIndex === -1 ? visibleItems.length : targetIndex;
+    const nextDropIndex = getDropIndexFromRects(drag.dropRects || [], event.clientY + window.scrollY);
     drag.dropIndex = nextDropIndex;
     setItemDropIndex(nextDropIndex);
     setItemDragPreview((current) =>
@@ -621,6 +631,11 @@ function getReorderPreviewItems(items, draggingId, dropIndex) {
   const next = [...remaining];
   next.splice(Math.max(0, Math.min(next.length, dropIndex)), 0, dragged);
   return next;
+}
+
+function getDropIndexFromRects(rects, pointerY) {
+  const targetIndex = rects.findIndex((rect) => pointerY < rect.center);
+  return targetIndex === -1 ? rects.length : targetIndex;
 }
 
 function FloatingDragCard({ preview, children }) {
