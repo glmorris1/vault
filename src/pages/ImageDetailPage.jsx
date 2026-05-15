@@ -69,7 +69,6 @@ export function ImageDetailPage({ data, updateData }) {
       items: [],
     };
     updateImage((current) => ({ ...current, pins: [...current.pins, pin] }));
-    navigate(`/locations/${location.id}/images/${image.id}/pins/${pin.id}`);
   }
 
   function pointerPositionToPercent(event) {
