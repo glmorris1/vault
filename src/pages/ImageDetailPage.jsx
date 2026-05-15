@@ -114,16 +114,17 @@ export function ImageDetailPage({ data, updateData }) {
   }
 
   function startPinPress(event, pinId) {
+    event.preventDefault();
     event.stopPropagation();
     const startX = event.clientX;
     const startY = event.clientY;
     const target = event.currentTarget;
     const pointerId = event.pointerId;
+    target.setPointerCapture?.(pointerId);
     const timer = window.setTimeout(() => {
       draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false };
-      target.setPointerCapture?.(pointerId);
     }, 350);
-    draggingPinRef.current = { id: pinId, startX, startY, active: false, moved: false, timer };
+    draggingPinRef.current = { id: pinId, startX, startY, active: false, moved: false, timer, target, pointerId };
   }
 
   function dragPin(event, pinId) {
@@ -147,6 +148,7 @@ export function ImageDetailPage({ data, updateData }) {
     const drag = draggingPinRef.current;
     if (!drag || drag.id !== pinId) return;
     window.clearTimeout(drag.timer);
+    drag.target?.releasePointerCapture?.(drag.pointerId);
     if (drag.active) {
       event.preventDefault();
       event.stopPropagation();
