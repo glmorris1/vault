@@ -1,6 +1,6 @@
 import { Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
@@ -18,6 +18,7 @@ export function PinDetailPage({ data, updateData, userId }) {
   const fileInputRef = useRef(null);
   const itemDragRef = useRef(null);
   const itemRowRefs = useRef({});
+  const pendingScrollItemRef = useRef("");
   const suppressItemClickRef = useRef(false);
   const [draggingItemId, setDraggingItemId] = useState("");
   const [itemDropIndex, setItemDropIndex] = useState(null);
@@ -37,6 +38,15 @@ export function PinDetailPage({ data, updateData, userId }) {
   if (!location || !image || !pin) {
     return <EmptyState title="Pin not found">This pin may have been deleted.</EmptyState>;
   }
+
+  useEffect(() => {
+    if (!pendingScrollItemRef.current) return;
+    const itemId = pendingScrollItemRef.current;
+    pendingScrollItemRef.current = "";
+    window.setTimeout(() => {
+      itemRowRefs.current[itemId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }, [pin.items.length]);
 
   function updatePin(updater) {
     updateData((current) => ({
@@ -72,6 +82,7 @@ export function PinDetailPage({ data, updateData, userId }) {
 
   function addItem() {
     const itemId = createId("item");
+    pendingScrollItemRef.current = itemId;
     updatePin((current) => ({
       ...current,
       items: [
