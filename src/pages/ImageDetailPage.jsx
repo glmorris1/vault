@@ -22,6 +22,9 @@ export function ImageDetailPage({ data, updateData }) {
   const [aiSummary, setAiSummary] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
+  const photoFrameRef = useRef(null);
+  const draggingSuggestionRef = useRef(null);
+  const suppressSuggestionClickRef = useRef(false);
   const { location, image } = findImage(data, locationId, imageId);
 
   if (!location || !image) {
@@ -58,6 +61,46 @@ export function ImageDetailPage({ data, updateData }) {
     };
     updateImage((current) => ({ ...current, pins: [...current.pins, pin] }));
     navigate(`/locations/${location.id}/images/${image.id}/pins/${pin.id}`);
+  }
+
+  function pointerPositionToPercent(event) {
+    const rect = photoFrameRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      xPercent: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      yPercent: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    };
+  }
+
+  function startSuggestionDrag(event, suggestionId) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    draggingSuggestionRef.current = { id: suggestionId, startX: event.clientX, startY: event.clientY, moved: false };
+  }
+
+  function dragSuggestion(event, suggestionId) {
+    const drag = draggingSuggestionRef.current;
+    if (!drag || drag.id !== suggestionId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (Math.abs(event.clientX - drag.startX) > 3 || Math.abs(event.clientY - drag.startY) > 3) {
+      drag.moved = true;
+    }
+    const position = pointerPositionToPercent(event);
+    if (position) updateSuggestion(suggestionId, position);
+  }
+
+  function endSuggestionDrag(event, suggestionId) {
+    const drag = draggingSuggestionRef.current;
+    if (!drag || drag.id !== suggestionId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressSuggestionClickRef.current = drag.moved;
+    draggingSuggestionRef.current = null;
+    window.setTimeout(() => {
+      suppressSuggestionClickRef.current = false;
+    }, 0);
   }
 
   function renameImage(name) {
@@ -157,7 +200,7 @@ export function ImageDetailPage({ data, updateData }) {
       </Card>
 
       <div className="relative overflow-hidden rounded-[2rem] bg-white shadow-soft">
-        <button className="relative block w-full touch-manipulation" onClick={placePin} aria-label="Add pin to image">
+        <div ref={photoFrameRef} className="relative block w-full touch-manipulation" onClick={placePin} role="button" aria-label="Add pin to image">
           <img
             className="block w-full select-none"
             src={image.photoDataUrl}
@@ -185,10 +228,15 @@ export function ImageDetailPage({ data, updateData }) {
             <span
               key={suggestion.id}
               data-pin
-              className="absolute grid size-10 -translate-x-1/2 -translate-y-full place-items-center"
+              className="absolute grid size-10 -translate-x-1/2 -translate-y-full touch-none place-items-center"
               style={{ left: `${suggestion.xPercent}%`, top: `${suggestion.yPercent}%` }}
+              onPointerDown={(event) => startSuggestionDrag(event, suggestion.id)}
+              onPointerMove={(event) => dragSuggestion(event, suggestion.id)}
+              onPointerUp={(event) => endSuggestionDrag(event, suggestion.id)}
+              onPointerCancel={(event) => endSuggestionDrag(event, suggestion.id)}
               onClick={(event) => {
                 event.stopPropagation();
+                if (suppressSuggestionClickRef.current) return;
                 toggleSuggestion(suggestion.id);
               }}
               aria-label={`Toggle suggested pin ${suggestion.label}`}
@@ -197,7 +245,7 @@ export function ImageDetailPage({ data, updateData }) {
               <SuggestedPinMarker selected={selectedSuggestionIds.includes(suggestion.id)} />
             </span>
           ))}
-        </button>
+        </div>
       </div>
 
       <Card className="grid gap-3">
@@ -205,7 +253,7 @@ export function ImageDetailPage({ data, updateData }) {
           <div>
             <h2 className="text-lg font-black">AI photo assistant</h2>
             <p className="mt-1 text-sm font-semibold leading-6 text-vault-muted">
-              AI suggestions may be imperfect. Please review before saving.
+              AI suggestions may be imperfect. Drag suggested pins to adjust them before saving.
             </p>
           </div>
           <Sparkles className="shrink-0 text-vault-blue" size={24} />
