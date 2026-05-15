@@ -276,7 +276,7 @@ export function LocationPage({ data, updateData, userId }) {
     setDeleteRoomId(null);
   }
 
-  const visibleRooms = getReorderPreviewRooms(location.rooms || [], draggingRoomId, roomDropIndex);
+  const visibleRooms = location.rooms || [];
 
   return (
     <div className="grid gap-5 pb-8">
@@ -478,16 +478,6 @@ function RoomSection({ room, locationId, expanded, uploading, legacy = false, on
       )}
     </Card>
   );
-}
-
-function getReorderPreviewRooms(rooms, draggingId, dropIndex) {
-  if (!draggingId || dropIndex === null || dropIndex === undefined) return rooms;
-  const dragged = rooms.find((room) => room.id === draggingId);
-  if (!dragged) return rooms;
-  const remaining = rooms.filter((room) => room.id !== draggingId);
-  const next = [...remaining];
-  next.splice(Math.max(0, Math.min(next.length, dropIndex)), 0, dragged);
-  return next;
 }
 
 function getDropIndexFromRects(rects, pointerY) {
