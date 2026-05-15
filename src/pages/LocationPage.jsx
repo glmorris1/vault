@@ -23,6 +23,8 @@ export function LocationPage({ data, updateData, userId }) {
   const [deleteImageRoomId, setDeleteImageRoomId] = useState("");
   const [deleteRoomId, setDeleteRoomId] = useState(null);
   const [draggingRoomId, setDraggingRoomId] = useState("");
+  const [roomDropIndex, setRoomDropIndex] = useState(null);
+  const [roomDragPreview, setRoomDragPreview] = useState(null);
   const [addingRoom, setAddingRoom] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [expandedRoomIds, setExpandedRoomIds] = useState(() => new Set());
@@ -143,8 +145,33 @@ export function LocationPage({ data, updateData, userId }) {
     const pointerId = event.pointerId;
     target.setPointerCapture?.(pointerId);
     const timer = window.setTimeout(() => {
-      roomDragRef.current = { id: roomId, startX, startY, active: true, moved: false, target, pointerId };
+      const rect = target.getBoundingClientRect();
+      const currentRooms = location.rooms || [];
+      const fromIndex = currentRooms.findIndex((room) => room.id === roomId);
+      const room = currentRooms[fromIndex];
+      roomDragRef.current = {
+        id: roomId,
+        startX,
+        startY,
+        active: true,
+        moved: false,
+        target,
+        pointerId,
+        fromIndex,
+        dropIndex: fromIndex,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
       setDraggingRoomId(roomId);
+      setRoomDropIndex(fromIndex);
+      setRoomDragPreview({
+        id: roomId,
+        label: room?.name || "Room",
+        width: rect.width,
+        height: rect.height,
+        x: rect.left,
+        y: rect.top,
+      });
       suppressRoomClickRef.current = true;
     }, 350);
     roomDragRef.current = { id: roomId, startX, startY, active: false, moved: false, timer, target, pointerId };
@@ -162,12 +189,23 @@ export function LocationPage({ data, updateData, userId }) {
     }
     event.preventDefault();
     drag.moved = true;
-    const rooms = location.rooms || [];
-    const targetIndex = rooms.findIndex((room) => {
+    const visibleRooms = (location.rooms || []).filter((room) => room.id !== roomId);
+    const targetIndex = visibleRooms.findIndex((room) => {
       const rect = roomRowRefs.current[room.id]?.getBoundingClientRect();
       return rect && event.clientY < rect.top + rect.height / 2;
     });
-    reorderRoom(roomId, targetIndex === -1 ? rooms.length - 1 : targetIndex);
+    const nextDropIndex = targetIndex === -1 ? visibleRooms.length : targetIndex;
+    drag.dropIndex = nextDropIndex;
+    setRoomDropIndex(nextDropIndex);
+    setRoomDragPreview((current) =>
+      current
+        ? {
+            ...current,
+            x: event.clientX - drag.offsetX,
+            y: event.clientY - drag.offsetY,
+          }
+        : current,
+    );
   }
 
   function endRoomPress(event, roomId) {
@@ -177,6 +215,7 @@ export function LocationPage({ data, updateData, userId }) {
     drag.target?.releasePointerCapture?.(drag.pointerId);
     if (drag.active) {
       event.preventDefault();
+      reorderRoom(roomId, drag.dropIndex ?? drag.fromIndex ?? 0);
       suppressRoomClickRef.current = true;
       window.setTimeout(() => {
         suppressRoomClickRef.current = false;
@@ -184,6 +223,8 @@ export function LocationPage({ data, updateData, userId }) {
     }
     roomDragRef.current = null;
     setDraggingRoomId("");
+    setRoomDropIndex(null);
+    setRoomDragPreview(null);
   }
 
   function renameImage(imageId, name) {
@@ -223,6 +264,8 @@ export function LocationPage({ data, updateData, userId }) {
     });
     setDeleteRoomId(null);
   }
+
+  const visibleRooms = getReorderPreviewRooms(location.rooms || [], draggingRoomId, roomDropIndex);
 
   return (
     <div className="grid gap-5 pb-8">
@@ -264,12 +307,12 @@ export function LocationPage({ data, updateData, userId }) {
           </EmptyState>
         ) : (
           <>
-            {(location.rooms || []).map((room) => (
+            {visibleRooms.map((room) => (
               <RoomSection
                 key={room.id}
                 room={room}
                 locationId={location.id}
-                expanded={expandedRoomIds.has(room.id)}
+                expanded={expandedRoomIds.has(room.id) && draggingRoomId !== room.id}
                 uploading={uploading && uploadRoomId === room.id}
                 onToggle={() => toggleRoom(room.id)}
                 onDeleteRoom={() => setDeleteRoomId(room.id)}
@@ -323,13 +366,21 @@ export function LocationPage({ data, updateData, userId }) {
         onCancel={() => setDeleteRoomId(null)}
         onConfirm={deleteRoom}
       />
+      {roomDragPreview && (
+        <FloatingDragCard preview={roomDragPreview}>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+            <ChevronRight size={19} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-lg font-black">{roomDragPreview.label}</span>
+        </FloatingDragCard>
+      )}
     </div>
   );
 }
 
 function RoomSection({ room, locationId, expanded, uploading, legacy = false, onToggle, onDeleteRoom, onUpload, onRenameImage, onDeleteImage, dragProps }) {
   return (
-    <Card className={`overflow-hidden p-0 transition ${dragProps?.dragging ? "scale-[1.01] ring-2 ring-vault-blue/35" : ""}`} ref={dragProps?.setRef}>
+    <Card className={`overflow-hidden p-0 transition ${dragProps?.dragging ? "opacity-35 ring-2 ring-vault-blue/30" : ""}`} ref={dragProps?.setRef}>
       <div
         className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.99]"
         onPointerDown={legacy ? undefined : dragProps?.onPointerDown}
@@ -413,6 +464,32 @@ function RoomSection({ room, locationId, expanded, uploading, legacy = false, on
         </div>
       )}
     </Card>
+  );
+}
+
+function getReorderPreviewRooms(rooms, draggingId, dropIndex) {
+  if (!draggingId || dropIndex === null || dropIndex === undefined) return rooms;
+  const dragged = rooms.find((room) => room.id === draggingId);
+  if (!dragged) return rooms;
+  const remaining = rooms.filter((room) => room.id !== draggingId);
+  const next = [...remaining];
+  next.splice(Math.max(0, Math.min(next.length, dropIndex)), 0, dragged);
+  return next;
+}
+
+function FloatingDragCard({ preview, children }) {
+  return (
+    <div
+      className="pointer-events-none fixed z-[80] flex items-center gap-3 rounded-[1.75rem] border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
+      style={{
+        left: `${preview.x}px`,
+        top: `${preview.y}px`,
+        width: `${preview.width}px`,
+        minHeight: `${preview.height}px`,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
