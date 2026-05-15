@@ -108,14 +108,27 @@ async function saveAIAnalysis(uid: string, record: Record<string, unknown>) {
 
 async function verifyPhotoIsInUserVault(uid: string, imageId: string, storagePath: string) {
   const snapshot = await getFirestore().collection("vaults").doc(uid).get();
-  const locations: Array<{ images?: Array<{ id?: string; storagePath?: string }> }> = snapshot.data()?.data?.locations;
+  const locations: Array<{
+    images?: Array<{
+      id?: string;
+      storagePath?: string;
+      pins?: Array<{
+        photos?: Array<{ id?: string; storagePath?: string }>;
+      }>;
+    }>;
+  }> = snapshot.data()?.data?.locations;
   if (!Array.isArray(locations)) {
     throw new HttpsError("not-found", "No Vault data was found for this user.");
   }
 
   const ownsPhoto = locations.some((location) =>
     Array.isArray(location.images) &&
-    location.images.some((image) => image?.id === imageId && image?.storagePath === storagePath),
+    location.images.some((image) => {
+      if (image?.id === imageId && image?.storagePath === storagePath) return true;
+      return image?.pins?.some((pin) =>
+        pin.photos?.some((photo) => photo?.id === imageId && photo?.storagePath === storagePath),
+      );
+    }),
   );
 
   if (!ownsPhoto) {
@@ -220,6 +233,10 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "Analyze this image and suggest pin locations for visible storage areas or visible groups of items.",
     dimensions,
     "Use xPercent and yPercent from 0 to 100, where 0,0 is the top-left of the image and 100,100 is the bottom-right.",
+    "Place each pin dead center on the identified object, storage area, drawer face, shelf opening, cabinet door, bin, box, or visible item group.",
+    "Do not place pins beside the object or offset left/right of the object. The pin coordinate should land on the object's visual center.",
+    "Suggest a pin for every visible drawer, shelf, cabinet, closet section, bin, box, and meaningful storage surface you can distinguish.",
+    "Avoid placing multiple pins tightly clustered next to each other; if several suggested pins would overlap, choose the center of each distinct storage area or merge duplicate suggestions.",
     "Return only JSON matching the provided schema.",
     "Do not identify people.",
     "Do not guess hidden contents.",
