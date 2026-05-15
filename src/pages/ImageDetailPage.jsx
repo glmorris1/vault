@@ -23,6 +23,8 @@ export function ImageDetailPage({ data, updateData }) {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState([]);
   const [showTip, setShowTip] = useState(false);
+  const [draggingPinId, setDraggingPinId] = useState("");
+  const [draggingPinLabel, setDraggingPinLabel] = useState("");
   const photoFrameRef = useRef(null);
   const draggingPinRef = useRef(null);
   const draggingSuggestionRef = useRef(null);
@@ -55,6 +57,7 @@ export function ImageDetailPage({ data, updateData }) {
   function placePin(event) {
     if (event.target.closest("[data-pin]")) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    // Store pin coordinates as percentages so markers survive responsive image resizing.
     const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
     const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
     const pin = {
@@ -126,6 +129,9 @@ export function ImageDetailPage({ data, updateData }) {
     target.setPointerCapture?.(pointerId);
     const timer = window.setTimeout(() => {
       draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false };
+      const pin = image.pins.find((item) => item.id === pinId);
+      setDraggingPinId(pinId);
+      setDraggingPinLabel(pin?.name?.trim() || "Unnamed");
     }, 350);
     draggingPinRef.current = { id: pinId, startX, startY, active: false, moved: false, timer, target, pointerId };
   }
@@ -163,6 +169,8 @@ export function ImageDetailPage({ data, updateData }) {
       }, 0);
     }
     draggingPinRef.current = null;
+    setDraggingPinId("");
+    setDraggingPinLabel("");
   }
 
   function renameImage(name) {
@@ -293,6 +301,12 @@ export function ImageDetailPage({ data, updateData }) {
               aria-label={`Open ${pin.name || "pin"}`}
               role="button"
             >
+              {draggingPinId === pin.id && (
+                <span className="pointer-events-none absolute bottom-full left-1/2 mb-3 min-w-24 -translate-x-1/2 rounded-full border border-vault-blue/25 bg-white/75 px-3 py-2 text-center text-xs font-black text-vault-ink shadow-lg backdrop-blur-md">
+                  {draggingPinLabel}
+                  <span className="absolute left-1/2 top-full h-3 w-px -translate-x-1/2 bg-vault-blue/40" />
+                </span>
+              )}
               <PinMarker />
             </span>
           ))}
