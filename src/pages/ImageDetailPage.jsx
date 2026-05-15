@@ -459,10 +459,13 @@ function splitItems(value) {
 }
 
 function formatAIError(error) {
+  const code = error?.code ? String(error.code).replace("functions/", "") : "";
   const message = error?.message || error?.details || "AI analysis failed. Please try again.";
   if (message.includes("unauthenticated")) return "Please sign in before using AI photo analysis.";
   if (message.includes("not-found")) return "This photo could not be found in secure storage.";
   if (message.includes("permission-denied")) return "This photo does not belong to the current signed-in user.";
-  if (message === "internal") return "AI analysis failed on the server. Please try again after the function update finishes deploying.";
+  if (code === "internal" || message === "internal") {
+    return "The AI server returned an internal error. Please check the Firebase Function logs for analyzePhotoWithAI.";
+  }
   return message.replace("FirebaseError: ", "");
 }
