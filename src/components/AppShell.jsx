@@ -2,11 +2,13 @@ import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+
+
 const themes = [
   { id: "default", label: "Default (Pink)" },
   { id: "blue", label: "Blue" },
   { id: "green", label: "Green" },
-  { id: "cream", label: "Cream/Beige" },
+  { id: "cream", label: "Linen" },
 ];
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange }) {
@@ -71,6 +73,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
             </div>
 
             <MenuSection
+              id="theme"
               className="mt-6"
               icon={<Palette size={21} />}
               title="Theme"
@@ -82,19 +85,20 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                   <button
                     key={item.id}
                     className={`flex min-h-11 items-center justify-between rounded-2xl border px-4 text-sm font-black transition ${
-                      theme === item.id || (theme === "pink" && item.id === "default") ? "border-vault-blue bg-vault-blue text-white" : "border-rose-100 bg-vault-pink/55 text-vault-ink"
+                      theme === item.id ? "border-vault-blue bg-vault-blue text-white" : "border-rose-100 bg-vault-pink/55 text-vault-ink"
                     }`}
                     onClick={() => onThemeChange?.(item.id)}
                     type="button"
                   >
                     {item.label}
-                    {(theme === item.id || (theme === "pink" && item.id === "default")) && <Check size={16} />}
+                    {theme === item.id && <Check size={16} />}
                   </button>
                 ))}
               </div>
             </MenuSection>
 
             <MenuSection
+              id="about"
               icon={<Info size={21} />}
               title="About"
               open={openMenuSections.has("about")}
@@ -106,6 +110,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
             </MenuSection>
 
             <MenuSection
+              id="contact"
               icon={<Mail size={21} />}
               title="Contact"
               open={openMenuSections.has("contact")}
