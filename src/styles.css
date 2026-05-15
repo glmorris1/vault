@@ -82,18 +82,15 @@ body {
 }
 
 .gold-4 {
-  background: linear-gradient(135deg, #fff8c6, #d6a93a, #8b6508);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #5a254b, #b25383, #7a315f);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
-  letter-spacing: 0.1em;
-}
-
-@media (min-width: 420px) {
-  .gold-4 {
-    letter-spacing: 0.15em;
-  }
+  filter: drop-shadow(0 5px 8px rgba(80, 30, 70, 0.2));
 }
 
 button,
