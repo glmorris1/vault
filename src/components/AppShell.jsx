@@ -51,7 +51,17 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
         <div className="grid min-h-14 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
           <div className="flex justify-start">
             {showBack && (
-              <button className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-vault-ink shadow-sm" onClick={() => navigate(-1)} aria-label="Go back">
+              <button
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-vault-ink shadow-sm"
+                onClick={() => {
+                  if (location.state?.backTo) {
+                    navigate(location.state.backTo, { replace: true });
+                    return;
+                  }
+                  navigate(-1);
+                }}
+                aria-label="Go back"
+              >
                 <ArrowLeft size={20} />
               </button>
             )}
