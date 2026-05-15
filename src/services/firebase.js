@@ -8,6 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { doc, getDoc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDownloadURL, getStorage, ref, uploadString } from "firebase/storage";
 import { createStarterData } from "../data/storage.js";
 
@@ -49,6 +50,7 @@ function getServices() {
     services = {
       auth: getAuth(app),
       db: getFirestore(app),
+      functions: getFunctions(app),
       storage: getStorage(app),
     };
   }
@@ -118,6 +120,19 @@ export async function uploadPhotoForUser(userId, imageId, dataUrl) {
   await uploadString(imageRef, dataUrl, "data_url");
   const downloadUrl = await getDownloadURL(imageRef);
   return { downloadUrl, storagePath };
+}
+
+export async function analyzePhotoWithAI({ imageId, storagePath, photoDataUrl, photoWidth, photoHeight }) {
+  const { functions } = getServices();
+  const analyze = httpsCallable(functions, "analyzePhotoWithAI");
+  const result = await analyze({
+    imageId,
+    storagePath,
+    downloadUrl: photoDataUrl,
+    photoWidth,
+    photoHeight,
+  });
+  return result.data;
 }
 
 export async function loadExistingVault(userId) {
