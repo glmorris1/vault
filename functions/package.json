@@ -12,6 +12,10 @@
     "node": "22"
   },
   "dependencies": {
+    "@types/express": "^5.0.6",
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-express-adapter": "^2.14.0",
+    "express": "^5.2.1",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0"
   },
