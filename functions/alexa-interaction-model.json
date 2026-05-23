@@ -9,6 +9,10 @@
             {
               "name": "item",
               "type": "HOUSEHOLD_ITEM"
+            },
+            {
+              "name": "person",
+              "type": "HOUSEHOLD_PERSON"
             }
           ],
           "samples": [
@@ -25,6 +29,17 @@
             "where my {item} are",
             "where the {item} is",
             "where my {item} is",
+            "where does {person} keep {item}",
+            "where does {person} keep my {item}",
+            "where does {person} keep his {item}",
+            "where does {person} keep her {item}",
+            "where does {person} keep the {item}",
+            "where do {item} go",
+            "where do my {item} go",
+            "where do the {item} go",
+            "where does {item} go",
+            "where does my {item} go",
+            "where does the {item} go",
             "where did I put {item}",
             "where did I put my {item}",
             "where did I put the {item}",
@@ -136,17 +151,32 @@
             { "name": { "value": "paper clips", "synonyms": ["paper clip"] } },
             { "name": { "value": "paper towels" } },
             { "name": { "value": "pens", "synonyms": ["pen"] } },
+            { "name": { "value": "plates", "synonyms": ["plate", "dishes", "dish"] } },
             { "name": { "value": "pliers", "synonyms": ["plier"] } },
             { "name": { "value": "rubber bands", "synonyms": ["rubber band"] } },
             { "name": { "value": "safety pins", "synonyms": ["safety pin"] } },
             { "name": { "value": "scissors", "synonyms": ["scissor"] } },
             { "name": { "value": "screwdriver", "synonyms": ["screwdrivers"] } },
             { "name": { "value": "screws", "synonyms": ["screw"] } },
+            { "name": { "value": "socks", "synonyms": ["sock"] } },
             { "name": { "value": "spoons", "synonyms": ["spoon"] } },
             { "name": { "value": "stamps", "synonyms": ["stamp"] } },
             { "name": { "value": "stapler" } },
             { "name": { "value": "thumbtacks", "synonyms": ["thumb tacks", "tacks"] } },
             { "name": { "value": "trash bags", "synonyms": ["trash bag", "garbage bags", "garbage bag"] } }
+          ]
+        },
+        {
+          "name": "HOUSEHOLD_PERSON",
+          "values": [
+            { "name": { "value": "mom", "synonyms": ["mother", "mama"] } },
+            { "name": { "value": "dad", "synonyms": ["father", "daddy"] } },
+            { "name": { "value": "Gary" } },
+            { "name": { "value": "grandma", "synonyms": ["grandmother"] } },
+            { "name": { "value": "grandpa", "synonyms": ["grandfather"] } },
+            { "name": { "value": "husband" } },
+            { "name": { "value": "wife" } },
+            { "name": { "value": "kids", "synonyms": ["children"] } }
           ]
         }
       ]
