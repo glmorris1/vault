@@ -189,9 +189,7 @@ export const alexaVaultSkill = onRequest(
             return;
           }
 
-          const best = matches[0];
-          const more = matches.length > 1 ? `I found ${matches.length} matches. The first one is ` : "";
-          response.status(200).json(alexaSpeak(`${more}${best.name} is in ${speakPath(best.path)}.`));
+          response.status(200).json(alexaSpeak(describeVaultItemMatches(matches)));
           return;
         }
 
@@ -637,6 +635,24 @@ function compactPath(...parts: Array<string | undefined>) {
 
 function speakPath(path: string[]) {
   return path.join(", ");
+}
+
+function describeVaultItemMatches(matches: Array<{ name: string; path: string[] }>) {
+  if (matches.length === 1) {
+    const match = matches[0];
+    return `${match.name} is in ${speakPath(match.path)}.`;
+  }
+
+  const spokenMatches = matches.slice(0, 3).map((match) => `${match.name} in ${speakPath(match.path)}`);
+  const remainingCount = matches.length - spokenMatches.length;
+  const remaining = remainingCount > 0 ? ` I found ${remainingCount} more match${remainingCount === 1 ? "" : "es"} too.` : "";
+  return `I found ${matches.length} matches: ${joinForSpeech(spokenMatches)}.${remaining}`;
+}
+
+function joinForSpeech(values: string[]) {
+  if (values.length <= 1) return values[0] || "";
+  if (values.length === 2) return `${values[0]}, and ${values[1]}`;
+  return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
 }
 
 
