@@ -1,8 +1,11 @@
 import { initializeApp } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
+  browserLocalPersistence,
+  browserSessionPersistence,
   getAuth,
   onAuthStateChanged,
+  setPersistence,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -72,8 +75,9 @@ export function subscribeToAuth(callback) {
   });
 }
 
-export async function registerUser({ username, email, password }) {
+export async function registerUser({ username, email, password, rememberLogin = true }) {
   const { auth, db } = getServices();
+  await setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence);
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credential.user, { displayName: username });
   await setDoc(doc(db, "users", credential.user.uid), {
@@ -84,8 +88,9 @@ export async function registerUser({ username, email, password }) {
   return credential.user;
 }
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ email, password, rememberLogin = true }) {
   const { auth } = getServices();
+  await setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence);
   const credential = await signInWithEmailAndPassword(auth, email, password);
   return credential.user;
 }

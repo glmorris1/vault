@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { Archive, Fingerprint } from "lucide-react";
 import { AppShell } from "./components/AppShell.jsx";
+import { Button } from "./components/Button.jsx";
 import { Onboarding } from "./pages/Onboarding.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { Dashboard } from "./pages/Dashboard.jsx";
@@ -10,6 +12,7 @@ import { PinDetailPage } from "./pages/PinDetailPage.jsx";
 import { UpgradePage } from "./pages/UpgradePage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
 import { findLocation } from "./data/search.js";
+import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
 
 const THEME_STORAGE_KEY = "vault-theme";
@@ -21,6 +24,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
   const [vaultReady, setVaultReady] = useState(!isFirebaseConfigured);
   const [cloudError, setCloudError] = useState("");
+  const [biometricUnlocked, setBiometricUnlocked] = useState(false);
   const [theme, setTheme] = useState(() => window.localStorage.getItem(THEME_STORAGE_KEY) || "default");
   const saveTimerRef = useRef(null);
   const lastCloudJsonRef = useRef("");
@@ -36,6 +40,7 @@ export default function App() {
     if (!isFirebaseConfigured) return undefined;
     return subscribeToAuth((nextUser) => {
       setUser(nextUser);
+      setBiometricUnlocked(false);
       setAuthReady(true);
       setVaultReady(!nextUser);
       setCloudError("");
@@ -105,6 +110,17 @@ export default function App() {
     return <LoginPage />;
   }
 
+  const needsBiometricUnlock = isBiometricUnlockEnabled(user.uid) && !isBiometricSessionUnlocked(user.uid) && !biometricUnlocked;
+  if (needsBiometricUnlock) {
+    return (
+      <BiometricUnlockPage
+        user={user}
+        onUnlock={() => setBiometricUnlocked(true)}
+        onLogout={logoutUser}
+      />
+    );
+  }
+
   if (!onboarded) {
     return <Onboarding onFinish={finishOnboarding} />;
   }
@@ -167,6 +183,44 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+function BiometricUnlockPage({ user, onUnlock, onLogout }) {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleUnlock() {
+    setStatus("");
+    setBusy(true);
+    try {
+      await unlockWithBiometrics(user.uid);
+      onUnlock();
+    } catch (error) {
+      setStatus(error?.message || "Vault could not verify Face ID. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
+      <div className="w-full rounded-[2rem] bg-white p-6 text-center shadow-soft">
+        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-vault-pink text-vault-ink">
+          <Archive size={30} />
+        </div>
+        <h1 className="gold-4 text-4xl font-black">Vault</h1>
+        <p className="mt-2 text-base font-semibold text-vault-muted">Use Face ID or your device passcode to unlock Vault.</p>
+        {status && <p className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{status}</p>}
+        <Button className="mt-5 w-full gap-2" onClick={handleUnlock} disabled={busy}>
+          <Fingerprint size={18} />
+          {busy ? "Checking..." : "Unlock with Face ID"}
+        </Button>
+        <button className="mt-4 text-sm font-black text-vault-muted underline" onClick={onLogout} type="button">
+          Use a different login
+        </button>
+      </div>
+    </main>
   );
 }
 

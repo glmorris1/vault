@@ -1,26 +1,52 @@
-import { Archive, Lock, Mail, UserRound } from "lucide-react";
-import { useState } from "react";
+import { Archive, Fingerprint, Lock, Mail, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
+import { canUseBiometricUnlock, enableBiometricUnlock, getRememberedEmail, markBiometricSessionUnlocked, setRememberedEmail } from "../services/authPreferences.js";
 import { isFirebaseConfigured, loginUser, registerUser } from "../services/firebase.js";
 
 export function LoginPage() {
   const [mode, setMode] = useState("register");
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => getRememberedEmail());
   const [password, setPassword] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(true);
+  const [useBiometrics, setUseBiometrics] = useState(false);
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    canUseBiometricUnlock().then((available) => {
+      if (mounted) setBiometricsAvailable(available);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
     setStatus("");
     setBusy(true);
     try {
+      const trimmedEmail = email.trim();
+      const authOptions = { email: trimmedEmail, password, rememberLogin };
+      let user;
       if (mode === "register") {
-        await registerUser({ username: username.trim(), email: email.trim(), password });
+        user = await registerUser({ username: username.trim(), ...authOptions });
       } else {
-        await loginUser({ email: email.trim(), password });
+        user = await loginUser(authOptions);
+      }
+
+      setRememberedEmail(rememberLogin ? trimmedEmail : "");
+      markBiometricSessionUnlocked(user.uid);
+      if (useBiometrics) {
+        const enabled = await enableBiometricUnlock(user);
+        if (!enabled) {
+          setStatus("Signed in, but this device does not support Face ID unlock for Vault yet.");
+        }
       }
     } catch (error) {
       setStatus(error.message.replace("Firebase: ", ""));
@@ -93,6 +119,25 @@ export function LoginPage() {
                 <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
               </div>
             </label>
+
+            <div className="grid gap-2 rounded-2xl bg-pink-50 p-3">
+              <label className="flex min-h-11 items-center gap-3 rounded-xl bg-white px-3 text-sm font-black text-vault-ink shadow-sm">
+                <input className="size-5 accent-vault-blue" type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} />
+                Remember this login
+              </label>
+              <label className={`flex min-h-11 items-center gap-3 rounded-xl bg-white px-3 text-sm font-black shadow-sm ${biometricsAvailable ? "text-vault-ink" : "text-vault-muted"}`}>
+                <input
+                  className="size-5 accent-vault-blue"
+                  type="checkbox"
+                  checked={useBiometrics}
+                  disabled={!biometricsAvailable}
+                  onChange={(event) => setUseBiometrics(event.target.checked)}
+                />
+                <Fingerprint size={18} />
+                Use Face ID unlock
+              </label>
+              {!biometricsAvailable && <p className="px-1 text-xs font-semibold leading-5 text-vault-muted">Face ID unlock appears when this device supports secure biometric sign-in.</p>}
+            </div>
 
             {status && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{status}</p>}
 
