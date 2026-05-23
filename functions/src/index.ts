@@ -23,6 +23,41 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 const REFRESH_TOKEN_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+const HOUSEHOLD_ITEM_ALIASES: Record<string, string[]> = {
+  "adhesive bandages": ["bandages", "bandaids", "band aids"],
+  batteries: ["battery"],
+  "birthday candles": ["candles"],
+  "bottle opener": ["opener"],
+  bulbs: ["bulb", "light bulbs", "light bulb"],
+  "cable ties": ["zip ties", "zip tie"],
+  charger: ["chargers", "charging cable", "charging cord"],
+  cords: ["cord", "cables", "cable"],
+  "extension cord": ["extension cable"],
+  flashlight: ["flashlights"],
+  forks: ["fork"],
+  keys: ["key"],
+  "light bulbs": ["light bulb", "bulbs", "bulb"],
+  matches: ["match"],
+  "measuring tape": ["tape measure"],
+  medicine: ["medication", "medications"],
+  nails: ["nail"],
+  napkins: ["napkin"],
+  "packing tape": ["tape"],
+  "paper clips": ["paper clip"],
+  pens: ["pen"],
+  pliers: ["plier"],
+  "rubber bands": ["rubber band"],
+  "safety pins": ["safety pin"],
+  scissors: ["scissor"],
+  screwdriver: ["screwdrivers"],
+  screws: ["screw"],
+  spoons: ["spoon"],
+  stamps: ["stamp"],
+  tape: ["packing tape"],
+  thumbtacks: ["thumb tacks", "tacks"],
+  "trash bags": ["trash bag", "garbage bags", "garbage bag"],
+  "zip ties": ["zip tie", "cable ties", "cable tie"],
+};
 
 export const analyzePhotoWithAI = onCall(
   {
@@ -542,7 +577,7 @@ async function searchUserVault(uid: string, query: string) {
       for (const pin of image.pins || []) {
         for (const item of pin.items || []) {
           const text = normalizeSearch([item.name, item.notes, item.quantity, item.estimatedValue, pin.name, image.name, room?.name, location.name].join(" "));
-          if (text.includes(normalizedQuery)) {
+          if (searchTextMatches(text, normalizedQuery)) {
             results.push({
               name: item.name || pin.name || "Item",
               path: compactPath(location.name, room?.name, image.name, pin.name),
@@ -610,10 +645,52 @@ function normalizeSearch(value: string) {
 
 function scoreMatch(value: string | undefined, normalizedQuery: string) {
   const normalizedValue = normalizeSearch(value || "");
-  if (normalizedValue === normalizedQuery) return 100;
-  if (normalizedValue.startsWith(normalizedQuery)) return 50;
-  if (normalizedValue.includes(normalizedQuery)) return 25;
+  for (const term of searchTerms(normalizedQuery)) {
+    if (normalizedValue === term) return 100;
+  }
+  for (const term of searchTerms(normalizedQuery)) {
+    if (normalizedValue.startsWith(term)) return 50;
+  }
+  for (const term of searchTerms(normalizedQuery)) {
+    if (normalizedValue.includes(term)) return 25;
+  }
   return 1;
+}
+
+function searchTextMatches(normalizedText: string, normalizedQuery: string) {
+  return searchTerms(normalizedQuery).some((term) => normalizedText.includes(term));
+}
+
+function searchTerms(normalizedValue: string) {
+  const terms = new Set([normalizedValue]);
+  const singular = singularize(normalizedValue);
+  const plural = pluralize(normalizedValue);
+  terms.add(singular);
+  terms.add(plural);
+
+  for (const [item, aliases] of Object.entries(HOUSEHOLD_ITEM_ALIASES)) {
+    const normalizedItem = normalizeSearch(item);
+    const normalizedAliases = aliases.map(normalizeSearch);
+    if ([normalizedItem, ...normalizedAliases].some((term) => terms.has(term))) {
+      terms.add(normalizedItem);
+      normalizedAliases.forEach((term) => terms.add(term));
+    }
+  }
+
+  return [...terms].filter(Boolean);
+}
+
+function singularize(value: string) {
+  if (value.endsWith("ies")) return `${value.slice(0, -3)}y`;
+  if (value.endsWith("es")) return value.slice(0, -2);
+  if (value.endsWith("s") && !value.endsWith("ss")) return value.slice(0, -1);
+  return value;
+}
+
+function pluralize(value: string) {
+  if (value.endsWith("y")) return `${value.slice(0, -1)}ies`;
+  if (value.endsWith("s")) return value;
+  return `${value}s`;
 }
 
 async function saveAIAnalysis(uid: string, record: Record<string, unknown>) {

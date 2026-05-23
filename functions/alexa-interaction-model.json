@@ -1,0 +1,146 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "vault",
+      "intents": [
+        {
+          "name": "FindItemIntent",
+          "slots": [
+            {
+              "name": "item",
+              "type": "HOUSEHOLD_ITEM"
+            }
+          ],
+          "samples": [
+            "find {item}",
+            "find my {item}",
+            "find the {item}",
+            "where are {item}",
+            "where are my {item}",
+            "where is {item}",
+            "where is my {item}",
+            "where did I put {item}",
+            "where did I put my {item}",
+            "where are the {item} in vault",
+            "where is the {item} in vault",
+            "tell me where {item} are",
+            "tell me where my {item} are",
+            "tell me where {item} is",
+            "tell me where my {item} is"
+          ]
+        },
+        {
+          "name": "SearchVaultIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "HOUSEHOLD_ITEM"
+            }
+          ],
+          "samples": [
+            "search for {query}",
+            "search vault for {query}",
+            "look for {query}",
+            "look up {query}"
+          ]
+        },
+        {
+          "name": "ListPinItemsIntent",
+          "slots": [
+            {
+              "name": "pin",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "what is in {pin}",
+            "what's in {pin}",
+            "what do I have in {pin}",
+            "list items in {pin}",
+            "tell me what is in {pin}",
+            "what is stored in {pin}"
+          ]
+        },
+        {
+          "name": "WhatIsInIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "check {query}",
+            "what is inside {query}",
+            "what's inside {query}",
+            "what items are in {query}"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        }
+      ],
+      "types": [
+        {
+          "name": "HOUSEHOLD_ITEM",
+          "values": [
+            { "name": { "value": "adhesive bandages", "synonyms": ["bandages", "bandaids", "band aids"] } },
+            { "name": { "value": "batteries", "synonyms": ["battery"] } },
+            { "name": { "value": "birthday candles", "synonyms": ["candles"] } },
+            { "name": { "value": "bottle opener", "synonyms": ["opener"] } },
+            { "name": { "value": "cable ties", "synonyms": ["zip ties", "zip tie"] } },
+            { "name": { "value": "candles" } },
+            { "name": { "value": "can opener" } },
+            { "name": { "value": "charger", "synonyms": ["chargers", "charging cable", "charging cord"] } },
+            { "name": { "value": "cleaning wipes" } },
+            { "name": { "value": "coffee filters" } },
+            { "name": { "value": "command strips" } },
+            { "name": { "value": "cords", "synonyms": ["cord", "cables", "cable"] } },
+            { "name": { "value": "dish towels" } },
+            { "name": { "value": "extension cord", "synonyms": ["extension cable"] } },
+            { "name": { "value": "flashlight", "synonyms": ["flashlights"] } },
+            { "name": { "value": "forks", "synonyms": ["fork"] } },
+            { "name": { "value": "glue" } },
+            { "name": { "value": "hammer" } },
+            { "name": { "value": "hand soap" } },
+            { "name": { "value": "keys", "synonyms": ["key"] } },
+            { "name": { "value": "light bulbs", "synonyms": ["light bulb", "bulbs", "bulb"] } },
+            { "name": { "value": "matches", "synonyms": ["match"] } },
+            { "name": { "value": "measuring tape", "synonyms": ["tape measure"] } },
+            { "name": { "value": "medicine", "synonyms": ["medication", "medications"] } },
+            { "name": { "value": "nails", "synonyms": ["nail"] } },
+            { "name": { "value": "napkins", "synonyms": ["napkin"] } },
+            { "name": { "value": "packing tape", "synonyms": ["tape"] } },
+            { "name": { "value": "paper clips", "synonyms": ["paper clip"] } },
+            { "name": { "value": "paper towels" } },
+            { "name": { "value": "pens", "synonyms": ["pen"] } },
+            { "name": { "value": "pliers", "synonyms": ["plier"] } },
+            { "name": { "value": "rubber bands", "synonyms": ["rubber band"] } },
+            { "name": { "value": "safety pins", "synonyms": ["safety pin"] } },
+            { "name": { "value": "scissors", "synonyms": ["scissor"] } },
+            { "name": { "value": "screwdriver", "synonyms": ["screwdrivers"] } },
+            { "name": { "value": "screws", "synonyms": ["screw"] } },
+            { "name": { "value": "spoons", "synonyms": ["spoon"] } },
+            { "name": { "value": "stamps", "synonyms": ["stamp"] } },
+            { "name": { "value": "stapler" } },
+            { "name": { "value": "thumbtacks", "synonyms": ["thumb tacks", "tacks"] } },
+            { "name": { "value": "trash bags", "synonyms": ["trash bag", "garbage bags", "garbage bag"] } }
+          ]
+        }
+      ]
+    }
+  }
+}

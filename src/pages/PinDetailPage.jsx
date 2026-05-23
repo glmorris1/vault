@@ -6,6 +6,7 @@ import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
 import { EditableText } from "../components/EditableText.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
+import { HOUSEHOLD_ITEM_SUGGESTIONS } from "../data/householdItems.js";
 import { createId, readImageFile } from "../data/storage.js";
 import { findPin } from "../data/search.js";
 import { analyzePhotoWithAI, isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
@@ -400,6 +401,11 @@ export function PinDetailPage({ data, updateData, userId }) {
 
   return (
     <div className="grid gap-5 pb-8">
+      <datalist id="vault-household-items">
+        {HOUSEHOLD_ITEM_SUGGESTIONS.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
       <Card>
         <div className="flex items-start justify-between gap-3">
           <p className="min-w-0 flex-1 text-xs font-black uppercase tracking-wide text-vault-muted">{location.name} - {image.name}</p>
@@ -466,6 +472,7 @@ export function PinDetailPage({ data, updateData, userId }) {
                 <div className="grid gap-3 border-t border-rose-100/70 p-4 pt-3">
                   <div className="flex items-start gap-3">
                 <input
+                  list="vault-household-items"
                   className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
                   value={item.name === "New item" ? "" : item.name}
                   placeholder="Item name"
