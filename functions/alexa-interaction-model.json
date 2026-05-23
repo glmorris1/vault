@@ -34,7 +34,7 @@
           "slots": [
             {
               "name": "query",
-              "type": "HOUSEHOLD_ITEM"
+              "type": "AMAZON.SearchQuery"
             }
           ],
           "samples": [
