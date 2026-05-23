@@ -4,11 +4,8 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { logger } from "firebase-functions";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
-import { defineSecret, defineString } from "firebase-functions/params";
-import express = require("express");
+import { defineSecret } from "firebase-functions/params";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import * as Alexa from "ask-sdk-core";
-import { ExpressAdapter } from "ask-sdk-express-adapter";
 import type { AIPhotoAnalysis, AIPhotoSuggestion, VaultImage, VaultItem, VaultLocation, VaultRoom } from "./types";
 
 initializeApp();
@@ -17,9 +14,8 @@ initializeApp();
 // firebase functions:secrets:set OPENAI_API_KEY
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const alexaClientSecret = defineSecret("ALEXA_CLIENT_SECRET");
-const alexaSkillId = defineString("ALEXA_SKILL_ID", { default: "" });
-const alexaClientId = defineString("ALEXA_CLIENT_ID", { default: "vault-alexa-skill" });
-const firebaseWebApiKey = defineString("FIREBASE_WEB_API_KEY", { default: "AIzaSyC4AV1Ge2eT9LKcb3TULzGUuEtv_7Hcw6U" });
+const ALEXA_CLIENT_ID_VALUE = "vault-alexa-skill";
+const VAULT_FIREBASE_WEB_API_KEY_VALUE = "AIzaSyC4AV1Ge2eT9LKcb3TULzGUuEtv_7Hcw6U";
 const OPENAI_MODEL = "gpt-4o-mini";
 const STORAGE_BUCKET = "vault-4e944.firebasestorage.app";
 
@@ -103,180 +99,102 @@ export const analyzePhotoWithAI = onCall(
   },
 );
 
-const LaunchRequestHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return Alexa.getRequestType(handlerInput.requestEnvelope) === "LaunchRequest";
-  },
-  handle(handlerInput: Alexa.HandlerInput) {
-    return handlerInput.responseBuilder
-      .speak("Welcome to Vault. You can ask, where are the scissors, or, what is in the left drawer?")
-      .reprompt("Try asking, where are the batteries?")
-      .getResponse();
-  },
-};
-
-const FindItemIntentHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return (
-      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
-      ["FindItemIntent", "SearchVaultIntent"].includes(Alexa.getIntentName(handlerInput.requestEnvelope))
-    );
-  },
-  async handle(handlerInput: Alexa.HandlerInput) {
-    const query = getSlotValue(handlerInput, "item") || getSlotValue(handlerInput, "query");
-    if (!query) {
-      return handlerInput.responseBuilder
-        .speak("What item would you like me to find in Vault?")
-        .reprompt("Say something like, where are the scissors?")
-        .getResponse();
-    }
-
-    const authResult = await resolveAlexaVaultUser(handlerInput);
-    if (!authResult.uid) return accountLinkingResponse(handlerInput);
-
-    const matches = await searchUserVault(authResult.uid, query);
-    if (matches.length === 0) {
-      return handlerInput.responseBuilder
-        .speak(`I could not find ${query} in your Vault yet.`)
-        .reprompt("You can ask me to find another item.")
-        .getResponse();
-    }
-
-    const best = matches[0];
-    const more = matches.length > 1 ? ` I found ${matches.length} matches. The first one is ` : "";
-    return handlerInput.responseBuilder
-      .speak(`${more}${best.name} is in ${speakPath(best.path)}.`)
-      .withSimpleCard("Vault", `${best.name}\n${best.path.join(" -> ")}`)
-      .getResponse();
-  },
-};
-
-const ListPinItemsIntentHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return (
-      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
-      ["ListPinItemsIntent", "WhatIsInIntent"].includes(Alexa.getIntentName(handlerInput.requestEnvelope))
-    );
-  },
-  async handle(handlerInput: Alexa.HandlerInput) {
-    const query = getSlotValue(handlerInput, "pin") || getSlotValue(handlerInput, "place") || getSlotValue(handlerInput, "query");
-    if (!query) {
-      return handlerInput.responseBuilder
-        .speak("Which drawer, shelf, cabinet, or pin should I check?")
-        .reprompt("Say something like, what is in the left drawer?")
-        .getResponse();
-    }
-
-    const authResult = await resolveAlexaVaultUser(handlerInput);
-    if (!authResult.uid) return accountLinkingResponse(handlerInput);
-
-    const matches = await searchPinsInUserVault(authResult.uid, query);
-    if (matches.length === 0) {
-      return handlerInput.responseBuilder
-        .speak(`I could not find a Vault pin named ${query}.`)
-        .reprompt("You can ask about another drawer, shelf, or cabinet.")
-        .getResponse();
-    }
-
-    const best = matches[0];
-    const items = best.items.slice(0, 8).map((item) => item.name).filter(Boolean);
-    const itemSpeech = items.length > 0 ? items.join(", ") : "no listed items yet";
-    return handlerInput.responseBuilder
-      .speak(`${best.name} has ${itemSpeech}. It is in ${speakPath(best.path)}.`)
-      .withSimpleCard("Vault", `${best.name}\n${best.path.join(" -> ")}\n${items.join(", ")}`)
-      .getResponse();
-  },
-};
-
-const HelpIntentHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" && Alexa.getIntentName(handlerInput.requestEnvelope) === "AMAZON.HelpIntent";
-  },
-  handle(handlerInput: Alexa.HandlerInput) {
-    return handlerInput.responseBuilder
-      .speak("You can ask Vault where an item is, like, where are the batteries, or ask what is in a pin, like, what is in the left drawer.")
-      .reprompt("Try asking, where are the batteries?")
-      .getResponse();
-  },
-};
-
-const CancelAndStopIntentHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return (
-      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
-      ["AMAZON.CancelIntent", "AMAZON.StopIntent"].includes(Alexa.getIntentName(handlerInput.requestEnvelope))
-    );
-  },
-  handle(handlerInput: Alexa.HandlerInput) {
-    return handlerInput.responseBuilder.speak("Okay.").getResponse();
-  },
-};
-
-const SessionEndedRequestHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return Alexa.getRequestType(handlerInput.requestEnvelope) === "SessionEndedRequest";
-  },
-  handle(handlerInput: Alexa.HandlerInput) {
-    return handlerInput.responseBuilder.getResponse();
-  },
-};
-
-const FallbackIntentHandler = {
-  canHandle(handlerInput: Alexa.HandlerInput) {
-    return Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" && Alexa.getIntentName(handlerInput.requestEnvelope) === "AMAZON.FallbackIntent";
-  },
-  handle(handlerInput: Alexa.HandlerInput) {
-    return handlerInput.responseBuilder
-      .speak("I can search your Vault for items or tell you what is listed inside a pin.")
-      .reprompt("Try asking, where are the scissors?")
-      .getResponse();
-  },
-};
-
-const AlexaErrorHandler = {
-  canHandle() {
-    return true;
-  },
-  handle(handlerInput: Alexa.HandlerInput, error: Error) {
-    logger.error("Alexa Vault skill error", error);
-    return handlerInput.responseBuilder
-      .speak("Sorry, Vault had trouble answering that. Please try again.")
-      .reprompt("Try asking, where are the batteries?")
-      .getResponse();
-  },
-};
-
-const AlexaApplicationIdInterceptor = {
-  process(handlerInput: Alexa.HandlerInput) {
-    verifyAlexaApplicationId(handlerInput.requestEnvelope);
-  },
-};
-
-const alexaSkill = Alexa.SkillBuilders.custom()
-  .addRequestInterceptors(AlexaApplicationIdInterceptor)
-  .addRequestHandlers(
-    LaunchRequestHandler,
-    FindItemIntentHandler,
-    ListPinItemsIntentHandler,
-    HelpIntentHandler,
-    CancelAndStopIntentHandler,
-    SessionEndedRequestHandler,
-    FallbackIntentHandler,
-  )
-  .addErrorHandlers(AlexaErrorHandler)
-  .create();
-
-const alexaApp = express();
-const alexaAdapter = new ExpressAdapter(alexaSkill, true, true);
-alexaApp.post("/", alexaAdapter.getRequestHandlers());
-
 export const alexaVaultSkill = onRequest(
   {
     timeoutSeconds: 30,
     memory: "512MiB",
     cors: false,
   },
-  alexaApp,
+  async (request, response) => {
+    try {
+      const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
+      const requestType = body?.request?.type || "";
+      const intentName = body?.request?.intent?.name || "";
+      if (request.method !== "POST") {
+        response.status(200).send("Vault Alexa endpoint is ready.");
+        return;
+      }
+
+      if (requestType === "LaunchRequest") {
+        response.status(200).json(alexaSpeak("Welcome to Vault."));
+        return;
+      }
+
+      if (requestType === "SessionEndedRequest") {
+        response.status(200).json({ version: "1.0", response: {} });
+        return;
+      }
+
+      if (requestType === "IntentRequest") {
+        const uid = await resolveAlexaVaultUserFromEnvelope(body);
+        if (!uid) {
+          response.status(200).json({
+            version: "1.0",
+            response: {
+              outputSpeech: { type: "PlainText", text: "Please link your Vault account in the Alexa app before I can search your Vault." },
+              card: { type: "LinkAccount" },
+              shouldEndSession: true,
+            },
+          });
+          return;
+        }
+
+        if (["FindItemIntent", "SearchVaultIntent"].includes(intentName)) {
+          const query = getEnvelopeSlotValue(body, "item") || getEnvelopeSlotValue(body, "query");
+          if (!query) {
+            response.status(200).json(alexaSpeak("What item would you like me to find in Vault?", "Say something like, where are the scissors?", false));
+            return;
+          }
+
+          const matches = await searchUserVault(uid, query);
+          if (matches.length === 0) {
+            response.status(200).json(alexaSpeak(`I could not find ${query} in your Vault yet.`, "You can ask me to find another item.", false));
+            return;
+          }
+
+          const best = matches[0];
+          const more = matches.length > 1 ? `I found ${matches.length} matches. The first one is ` : "";
+          response.status(200).json(alexaSpeak(`${more}${best.name} is in ${speakPath(best.path)}.`));
+          return;
+        }
+
+        if (["ListPinItemsIntent", "WhatIsInIntent"].includes(intentName)) {
+          const query = getEnvelopeSlotValue(body, "pin") || getEnvelopeSlotValue(body, "place") || getEnvelopeSlotValue(body, "query");
+          if (!query) {
+            response.status(200).json(alexaSpeak("Which drawer, shelf, cabinet, or pin should I check?", "Say something like, what is in the left drawer?", false));
+            return;
+          }
+
+          const matches = await searchPinsInUserVault(uid, query);
+          if (matches.length === 0) {
+            response.status(200).json(alexaSpeak(`I could not find a Vault pin named ${query}.`, "You can ask about another drawer, shelf, or cabinet.", false));
+            return;
+          }
+
+          const best = matches[0];
+          const items = best.items.slice(0, 8).map((item) => item.name).filter(Boolean);
+          const itemSpeech = items.length > 0 ? items.join(", ") : "no listed items yet";
+          response.status(200).json(alexaSpeak(`${best.name} has ${itemSpeech}. It is in ${speakPath(best.path)}.`));
+          return;
+        }
+
+        if (intentName === "AMAZON.HelpIntent") {
+          response.status(200).json(alexaSpeak("You can ask Vault where an item is, like, where are the batteries, or ask what is in a pin, like, what is in the left drawer.", "Try asking, where are the batteries?", false));
+          return;
+        }
+
+        if (["AMAZON.CancelIntent", "AMAZON.StopIntent"].includes(intentName)) {
+          response.status(200).json(alexaSpeak("Okay."));
+          return;
+        }
+      }
+
+      response.status(200).json(alexaSpeak("I can search your Vault for items or tell you what is listed inside a pin.", "Try asking, where are the scissors?", false));
+    } catch (error: any) {
+      logger.error(`Alexa Vault skill request failed: ${error?.message || error}`);
+      response.status(200).json(alexaSpeak("Sorry, Vault had trouble answering that. Please try again.", "Try asking, where are the batteries?", false));
+    }
+  },
 );
 
 export const alexaAuthorize = onRequest(
@@ -349,41 +267,46 @@ export const alexaToken = onRequest(
   },
 );
 
-function verifyAlexaApplicationId(requestEnvelope: any) {
-  const expectedSkillId = alexaSkillId.value();
-  if (!expectedSkillId) {
-    logger.warn("ALEXA_SKILL_ID is not configured. Skipping Alexa application ID check.");
-    return;
+function alexaSpeak(text: string, reprompt = "", shouldEndSession = true) {
+  const response: any = {
+    outputSpeech: { type: "PlainText", text },
+    shouldEndSession,
+  };
+  if (reprompt) {
+    response.reprompt = { outputSpeech: { type: "PlainText", text: reprompt } };
   }
-
-  const actualSkillId = requestEnvelope.context?.System?.application?.applicationId;
-  if (actualSkillId !== expectedSkillId) {
-    throw new Error("Alexa application ID did not match this Vault skill.");
-  }
+  return { version: "1.0", response };
 }
 
-async function resolveAlexaVaultUser(handlerInput: Alexa.HandlerInput): Promise<{ uid?: string }> {
-  const system = handlerInput.requestEnvelope.context?.System;
-  const accessToken = system?.user?.accessToken;
+function getEnvelopeSlotValue(envelope: any, slotName: string) {
+  const value = envelope?.request?.intent?.slots?.[slotName]?.value;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function resolveAlexaVaultUserFromEnvelope(envelope: any) {
+  const system = envelope?.context?.System || envelope?.session;
+  const accessToken = system?.user?.accessToken || envelope?.session?.user?.accessToken;
   if (accessToken) {
     const uidFromOAuth = await resolveAlexaAccessToken(accessToken);
-    if (uidFromOAuth) return { uid: uidFromOAuth };
+    if (uidFromOAuth) return uidFromOAuth;
 
     try {
       const decoded = await getAuth().verifyIdToken(accessToken);
-      return { uid: decoded.uid };
+      return decoded.uid;
     } catch (error) {
-      logger.warn("Alexa access token was not a Firebase ID token", error);
+      logger.warn("Alexa envelope access token was not a Firebase ID token", error);
     }
   }
 
-  const alexaUserId = system?.user?.userId;
-  if (!alexaUserId) return {};
-
+  const alexaUserId = system?.user?.userId || envelope?.session?.user?.userId;
+  if (!alexaUserId) return "";
   const linkSnapshot = await getFirestore().collection("alexaLinks").doc(alexaUserId).get();
   const uid = linkSnapshot.data()?.uid;
-  return typeof uid === "string" && uid ? { uid } : {};
+  return typeof uid === "string" && uid ? uid : "";
 }
+
+
+
 
 async function resolveAlexaAccessToken(accessToken: string) {
   const snapshot = await getFirestore().collection("alexaAccessTokens").doc(hashToken(accessToken)).get();
@@ -457,7 +380,7 @@ function renderAlexaLoginPage(params: AlexaAuthorizeParams, errorMessage = "") {
 }
 
 async function signInWithFirebasePassword(email: string, password: string) {
-  const apiKey = firebaseWebApiKey.value();
+  const apiKey = VAULT_FIREBASE_WEB_API_KEY_VALUE;
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -533,7 +456,7 @@ async function issueAlexaTokens(uid: string, scope: string, existingRefreshToken
 }
 
 function validateAlexaOAuthRequest(params: AlexaAuthorizeParams) {
-  if (params.clientId !== alexaClientId.value()) {
+  if (params.clientId !== ALEXA_CLIENT_ID_VALUE) {
     throw new Error("Invalid client id.");
   }
   if (params.responseType !== "code") {
@@ -545,16 +468,31 @@ function validateAlexaOAuthRequest(params: AlexaAuthorizeParams) {
 }
 
 function verifyAlexaClient(request: any) {
-  const expectedId = alexaClientId.value();
+  const expectedId = ALEXA_CLIENT_ID_VALUE;
   const expectedSecret = alexaClientSecret.value();
-  const auth = request.headers.authorization || "";
+  const auth = String(request.headers.authorization || "");
   const [scheme, encoded] = auth.split(" ");
-  if (scheme !== "Basic" || !encoded) throw new Error("Missing client credentials.");
-  const decoded = Buffer.from(encoded, "base64").toString("utf8");
-  const separatorIndex = decoded.indexOf(":");
-  const clientId = decoded.slice(0, separatorIndex);
-  const clientSecret = decoded.slice(separatorIndex + 1);
-  if (clientId !== expectedId || !safeEqual(clientSecret, expectedSecret)) {
+  let clientId = "";
+  let clientSecret = "";
+
+  if (scheme?.toLowerCase() === "basic" && encoded) {
+    const decoded = Buffer.from(encoded, "base64").toString("utf8");
+    const separatorIndex = decoded.indexOf(":");
+    clientId = decodeURIComponent(decoded.slice(0, separatorIndex));
+    clientSecret = decodeURIComponent(decoded.slice(separatorIndex + 1));
+  }
+
+  if (!clientId && typeof request.body?.client_id === "string") {
+    clientId = request.body.client_id.trim();
+  }
+
+  if (!clientSecret && typeof request.body?.client_secret === "string") {
+    clientSecret = request.body.client_secret.trim();
+  }
+
+  const secretMatches = safeEqual(clientSecret, expectedSecret);
+
+  if (clientId !== expectedId || !secretMatches) {
     throw new Error("Invalid client credentials.");
   }
 }
@@ -592,12 +530,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
-function accountLinkingResponse(handlerInput: Alexa.HandlerInput) {
-  return handlerInput.responseBuilder
-    .speak("Please link your Vault account in the Alexa app before I can search your Vault.")
-    .withLinkAccountCard()
-    .getResponse();
-}
+
 
 async function searchUserVault(uid: string, query: string) {
   const locations = await loadVaultLocations(uid);
@@ -669,11 +602,7 @@ function speakPath(path: string[]) {
   return path.join(", ");
 }
 
-function getSlotValue(handlerInput: Alexa.HandlerInput, slotName: string) {
-  const intent = (handlerInput.requestEnvelope.request as any).intent;
-  const value = intent?.slots?.[slotName]?.value;
-  return typeof value === "string" ? value.trim() : "";
-}
+
 
 function normalizeSearch(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
