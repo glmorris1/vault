@@ -17,16 +17,25 @@
             "find the {item}",
             "where are {item}",
             "where are my {item}",
+            "where are the {item}",
             "where is {item}",
             "where is my {item}",
+            "where is the {item}",
+            "where the {item} are",
+            "where my {item} are",
+            "where the {item} is",
+            "where my {item} is",
             "where did I put {item}",
             "where did I put my {item}",
+            "where did I put the {item}",
             "where are the {item} in vault",
             "where is the {item} in vault",
             "tell me where {item} are",
             "tell me where my {item} are",
+            "tell me where the {item} are",
             "tell me where {item} is",
-            "tell me where my {item} is"
+            "tell me where my {item} is",
+            "tell me where the {item} is"
           ]
         },
         {
