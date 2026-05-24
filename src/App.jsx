@@ -38,7 +38,12 @@ export default function App() {
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
-    return subscribeToAuth((nextUser) => {
+    const authFallbackTimer = window.setTimeout(() => {
+      setAuthReady(true);
+      setVaultReady(true);
+    }, 5000);
+    const unsubscribe = subscribeToAuth((nextUser) => {
+      window.clearTimeout(authFallbackTimer);
       setUser(nextUser);
       setBiometricUnlocked(false);
       setAuthReady(true);
@@ -46,6 +51,10 @@ export default function App() {
       setCloudError("");
       if (!nextUser) setData(createStarterData());
     });
+    return () => {
+      window.clearTimeout(authFallbackTimer);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
