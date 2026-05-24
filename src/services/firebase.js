@@ -77,8 +77,12 @@ export function subscribeToAuth(callback) {
 
 export async function registerUser({ username, email, password, rememberLogin = true }) {
   const { auth, db } = getServices();
-  await setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence);
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  await setAuthPersistence(auth, rememberLogin);
+  const credential = await withTimeout(
+    createUserWithEmailAndPassword(auth, email, password),
+    20000,
+    "Creating your account is taking too long. Please check your connection and try again.",
+  );
   await updateProfile(credential.user, { displayName: username });
   await setDoc(doc(db, "users", credential.user.uid), {
     username,
@@ -90,8 +94,12 @@ export async function registerUser({ username, email, password, rememberLogin = 
 
 export async function loginUser({ email, password, rememberLogin = true }) {
   const { auth } = getServices();
-  await setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence);
-  const credential = await signInWithEmailAndPassword(auth, email, password);
+  await setAuthPersistence(auth, rememberLogin);
+  const credential = await withTimeout(
+    signInWithEmailAndPassword(auth, email, password),
+    20000,
+    "Signing in is taking too long. Please check your connection and try again.",
+  );
   return credential.user;
 }
 
@@ -183,4 +191,25 @@ function setStoredAIUses(uses) {
   const value = Number.isFinite(uses) ? uses : 0;
   window.localStorage.setItem(AI_USAGE_STORAGE_KEY, String(value));
   window.dispatchEvent(new CustomEvent("vault-ai-usage-changed", { detail: { uses: value } }));
+}
+
+async function setAuthPersistence(auth, rememberLogin) {
+  try {
+    await withTimeout(
+      setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence),
+      3000,
+      "Auth persistence timed out.",
+    );
+  } catch (error) {
+    console.warn("Vault auth persistence setup failed; continuing with Firebase default persistence.", error);
+  }
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
 }
