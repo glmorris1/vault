@@ -110,7 +110,9 @@ export default function App() {
     setOnboarded(true);
   }
 
-  if (window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
+  const hasShareLink = new URLSearchParams(routerLocation.search).has("share");
+
+  if (hasShareLink || window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
     return (
       <Routes>
         <Route path="/" element={<SharedVaultPage />} />

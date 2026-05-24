@@ -16,6 +16,8 @@
 :root,
 :root[data-theme="default"],
 :root[data-theme="pink"] {
+  --vault-safe-top: env(safe-area-inset-top, 0px);
+  --vault-safe-bottom: env(safe-area-inset-bottom, 0px);
   --vault-pink: #fde8ef;
   --vault-rose: #f8b9cc;
   --vault-ink: #5d6066;
@@ -87,6 +89,7 @@ html {
 
 body {
   margin: 0;
+  padding-top: var(--vault-safe-top);
   color: var(--vault-ink);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.86), transparent 34rem),
@@ -126,7 +129,7 @@ button * {
 }
 
 .safe-bottom {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-bottom: max(1rem, var(--vault-safe-bottom));
 }
 
 .tap-highlight {

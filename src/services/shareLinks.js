@@ -1,4 +1,4 @@
-const SHARE_BASE_URL = "https://glmorris1.github.io/vault/#share";
+const SHARE_BASE_URL = "https://glmorris1.github.io/vault/";
 
 export function createShareUrl(locations) {
   const payload = {
@@ -6,10 +6,13 @@ export function createShareUrl(locations) {
     createdAt: new Date().toISOString(),
     locations: (locations || []).map(prepareSharedLocation),
   };
-  return `${SHARE_BASE_URL}&data=${encodePayload(payload)}`;
+  return `${SHARE_BASE_URL}?share=${encodePayload(payload)}`;
 }
 
 export function readSharePayload() {
+  const searchData = new URLSearchParams(window.location.search).get("share");
+  if (searchData) return decodePayload(searchData);
+
   const hash = window.location.hash.replace(/^#/, "");
   const query = hash.startsWith("share&") ? hash.slice("share&".length) : hash;
   const params = new URLSearchParams(query);
