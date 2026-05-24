@@ -1,0 +1,8 @@
+{
+  "appId": "com.glmorris1.vault",
+  "appName": "Vault",
+  "webDir": "dist",
+  "ios": {
+    "scheme": "Vault"
+  }
+}
