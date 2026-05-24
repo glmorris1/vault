@@ -1,6 +1,11 @@
+import { Capacitor } from "@capacitor/core";
+
 const REMEMBER_EMAIL_KEY = "vault.auth.rememberedEmail";
+const REMEMBER_CREDENTIALS_KEY = "vault.auth.hasSavedCredentials";
+const REMEMBER_CREDENTIALS_PROTECTION_KEY = "vault.auth.savedCredentialsProtection";
 const BIOMETRIC_KEY_PREFIX = "vault.auth.biometric.";
 const BIOMETRIC_SESSION_PREFIX = "vault.auth.biometricUnlocked.";
+const NATIVE_CREDENTIAL_SERVER = "vault-login";
 
 export function getRememberedEmail() {
   return window.localStorage.getItem(REMEMBER_EMAIL_KEY) || "";
@@ -12,6 +17,76 @@ export function setRememberedEmail(email) {
     window.localStorage.setItem(REMEMBER_EMAIL_KEY, value);
   } else {
     window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+  }
+}
+
+export async function hasSavedLoginCredentials() {
+  if (!isNativeApp()) return false;
+  try {
+    const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    const result = await NativeBiometric.isCredentialsSaved({ server: NATIVE_CREDENTIAL_SERVER });
+    return Boolean(result?.isSaved);
+  } catch {
+    return window.localStorage.getItem(REMEMBER_CREDENTIALS_KEY) === "true";
+  }
+}
+
+export async function saveLoginCredentials({ user, password, requireBiometric = false }) {
+  if (!isNativeApp() || !user?.email || !password) return false;
+  try {
+    const { AccessControl, NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    await NativeBiometric.setCredentials({
+      username: user.email,
+      password,
+      server: NATIVE_CREDENTIAL_SERVER,
+      accessControl: requireBiometric ? AccessControl.BIOMETRY_ANY : AccessControl.NONE,
+    });
+    window.localStorage.setItem(REMEMBER_CREDENTIALS_KEY, "true");
+    window.localStorage.setItem(REMEMBER_CREDENTIALS_PROTECTION_KEY, requireBiometric ? "biometric" : "plain");
+    if (requireBiometric) {
+      window.localStorage.setItem(biometricKey(user.uid), "native");
+      markBiometricSessionUnlocked(user.uid);
+    }
+    return true;
+  } catch (error) {
+    console.warn("Vault could not save native login credentials.", error);
+    return false;
+  }
+}
+
+export function savedLoginRequiresBiometric() {
+  return window.localStorage.getItem(REMEMBER_CREDENTIALS_PROTECTION_KEY) === "biometric";
+}
+
+export async function getSavedLoginCredentials({ requireBiometric = false } = {}) {
+  if (!isNativeApp()) return null;
+  try {
+    const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    const credentials = requireBiometric
+      ? await NativeBiometric.getSecureCredentials({
+          server: NATIVE_CREDENTIAL_SERVER,
+          reason: "Unlock Vault",
+          title: "Vault",
+          subtitle: "Face ID",
+          description: "Use Face ID or your device passcode to sign in.",
+          negativeButtonText: "Cancel",
+        })
+      : await NativeBiometric.getCredentials({ server: NATIVE_CREDENTIAL_SERVER });
+    if (!credentials?.username || !credentials?.password) return null;
+    return { email: credentials.username, password: credentials.password };
+  } catch {
+    return null;
+  }
+}
+
+export async function clearSavedLoginCredentials() {
+  window.localStorage.removeItem(REMEMBER_CREDENTIALS_KEY);
+  window.localStorage.removeItem(REMEMBER_CREDENTIALS_PROTECTION_KEY);
+  try {
+    const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    await NativeBiometric.deleteCredentials({ server: NATIVE_CREDENTIAL_SERVER });
+  } catch {
+    // Nothing to clear.
   }
 }
 
@@ -111,6 +186,10 @@ async function canUseNativeBiometricUnlock() {
   } catch {
     return false;
   }
+}
+
+function isNativeApp() {
+  return Capacitor.isNativePlatform();
 }
 
 async function verifyNativeBiometricUnlock(reason) {

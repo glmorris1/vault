@@ -2,18 +2,31 @@ import { Fingerprint, Lock, Mail, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
-import { canUseBiometricUnlock, enableBiometricUnlock, getRememberedEmail, markBiometricSessionUnlocked, setRememberedEmail } from "../services/authPreferences.js";
+import {
+  canUseBiometricUnlock,
+  clearSavedLoginCredentials,
+  enableBiometricUnlock,
+  getRememberedEmail,
+  getSavedLoginCredentials,
+  hasSavedLoginCredentials,
+  markBiometricSessionUnlocked,
+  savedLoginRequiresBiometric,
+  saveLoginCredentials,
+  setRememberedEmail,
+} from "../services/authPreferences.js";
 import { isFirebaseConfigured, loginUser, registerUser } from "../services/firebase.js";
 import vaultLogo from "../assets/vault-watermark.svg";
 
 export function LoginPage() {
-  const [mode, setMode] = useState("register");
+  const rememberedEmail = getRememberedEmail();
+  const [mode, setMode] = useState(rememberedEmail ? "login" : "register");
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState(() => getRememberedEmail());
+  const [email, setEmail] = useState(() => rememberedEmail);
   const [password, setPassword] = useState("");
   const [rememberLogin, setRememberLogin] = useState(true);
   const [useBiometrics, setUseBiometrics] = useState(false);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [savedCredentialsAvailable, setSavedCredentialsAvailable] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -21,6 +34,9 @@ export function LoginPage() {
     let mounted = true;
     canUseBiometricUnlock().then((available) => {
       if (mounted) setBiometricsAvailable(available);
+    });
+    hasSavedLoginCredentials().then((available) => {
+      if (mounted) setSavedCredentialsAvailable(available);
     });
     return () => {
       mounted = false;
@@ -43,15 +59,40 @@ export function LoginPage() {
 
       setRememberedEmail(rememberLogin ? trimmedEmail : "");
       markBiometricSessionUnlocked(user.uid);
-      if (useBiometrics) {
-        enableBiometricUnlock(user)
-          .then((enabled) => {
-            if (!enabled) {
-              setStatus("Signed in. Face ID can be enabled later from this device.");
-            }
-          })
-          .catch(() => setStatus("Signed in. Face ID can be enabled later from this device."));
+      let saved = false;
+      if (rememberLogin || useBiometrics) {
+        saved = await saveLoginCredentials({ user, password, requireBiometric: useBiometrics });
+        setSavedCredentialsAvailable(saved);
+      } else {
+        await clearSavedLoginCredentials();
+        setSavedCredentialsAvailable(false);
       }
+
+      if (useBiometrics && !saved) {
+        enableBiometricUnlock(user).catch(() => setStatus("Signed in. Face ID can be enabled later from this device."));
+      }
+    } catch (error) {
+      setStatus(error.message.replace("Firebase: ", ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSavedLogin() {
+    setStatus("");
+    setBusy(true);
+    try {
+      const credentials = await getSavedLoginCredentials({ requireBiometric: savedLoginRequiresBiometric() });
+      if (!credentials) {
+        setStatus("Saved login was not available on this device. Please sign in with your password once.");
+        return;
+      }
+      setMode("login");
+      setEmail(credentials.email);
+      setPassword(credentials.password);
+      const user = await loginUser({ ...credentials, rememberLogin: true });
+      setRememberedEmail(credentials.email);
+      markBiometricSessionUnlocked(user.uid);
     } catch (error) {
       setStatus(error.message.replace("Firebase: ", ""));
     } finally {
@@ -142,6 +183,18 @@ export function LoginPage() {
               </label>
               {!biometricsAvailable && <p className="px-1 text-xs font-semibold leading-5 text-vault-muted">Face ID unlock appears when this device supports secure biometric sign-in.</p>}
             </div>
+
+            {savedCredentialsAvailable && mode === "login" && (
+              <button
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
+                type="button"
+                onClick={handleSavedLogin}
+                disabled={busy}
+              >
+                <Fingerprint size={18} />
+                {savedLoginRequiresBiometric() ? "Sign in with Face ID" : "Use saved login"}
+              </button>
+            )}
 
             {status && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{status}</p>}
 

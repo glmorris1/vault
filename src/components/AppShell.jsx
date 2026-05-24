@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { createShareUrl } from "../services/shareLinks.js";
 
 
 
@@ -11,14 +12,14 @@ const themes = [
   { id: "cream", label: "Linen" },
 ];
 
-const ALEXA_LINK_URL = "https://layla.amazon.com/api/skill/link/M3LH5P8TFXP45J";
-
-export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize }) {
+export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
   const [alphabetized, setAlphabetized] = useState(false);
+  const [selectedShareIds, setSelectedShareIds] = useState(() => new Set());
+  const [shareStatus, setShareStatus] = useState("");
 
   function toggleMenuSection(sectionId) {
     setOpenMenuSections((current) => {
@@ -35,6 +36,42 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   function closeMenu() {
     setMenuOpen(false);
     setAlphabetized(false);
+    setShareStatus("");
+  }
+
+  function toggleShareLocation(locationId) {
+    setSelectedShareIds((current) => {
+      const next = new Set(current);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+  }
+
+  async function shareSelectedLocations() {
+    const locations = (data?.locations || []).filter((item) => selectedShareIds.has(item.id));
+    if (locations.length === 0) {
+      setShareStatus("Choose at least one location to share.");
+      return;
+    }
+    const url = createShareUrl(locations);
+    try {
+      if (window.navigator.share) {
+        await window.navigator.share({
+          title: "Vault shared locations",
+          text: locations.length === 1 ? `Shared location: ${locations[0].name}` : `Shared ${locations.length} Vault locations`,
+          url,
+        });
+      } else {
+        await window.navigator.clipboard.writeText(url);
+        setShareStatus("Share link copied.");
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") setShareStatus("The share link is ready, but this device could not open sharing.");
+    }
   }
 
   useLayoutEffect(() => {
@@ -133,19 +170,32 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               open={openMenuSections.has("share")}
               onToggle={() => toggleMenuSection("share")}
             >
+              <p className="text-sm font-semibold leading-6 text-vault-muted">Choose exactly which locations this link can show.</p>
+              {(data?.locations || []).length === 0 ? (
+                <p className="rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">Add a location first, then you can share it.</p>
+              ) : (
+                <div className="grid gap-2">
+                  {(data?.locations || []).map((item) => (
+                    <label key={item.id} className="flex min-h-11 items-center gap-3 rounded-2xl bg-vault-pink/55 px-3 text-sm font-black text-vault-ink">
+                      <input
+                        className="size-5 accent-vault-blue"
+                        type="checkbox"
+                        checked={selectedShareIds.has(item.id)}
+                        onChange={() => toggleShareLocation(item.id)}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <button
                 className="flex min-h-12 w-fit items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
-                onClick={() => {
-                  window.navigator.share?.({
-                    title: "Vault",
-                    text: "Vault helps you remember where everything belongs.",
-                    url: "https://glmorris1.github.io/vault/",
-                  });
-                }}
+                onClick={shareSelectedLocations}
                 type="button"
               >
-                Share Vault
+                Share selected
               </button>
+              {shareStatus && <p className="rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{shareStatus}</p>}
             </MenuSection>
 
             <MenuSection
@@ -156,17 +206,16 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               onToggle={() => toggleMenuSection("alexa")}
             >
               <p className="text-sm font-semibold leading-6 text-vault-muted">
-                Connect Vault to Alexa so you can ask where saved items are.
+                Connect through the Alexa app while Vault is still a development skill.
               </p>
-              <a
+              <button
                 className="inline-flex min-h-12 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition active:scale-[0.98]"
-                href={ALEXA_LINK_URL}
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => window.navigator.clipboard?.writeText("Open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.")}
+                type="button"
               >
-                Connect Alexa
-              </a>
-              <p className="text-xs font-black leading-5 text-vault-muted">Try: Alexa, ask Vault where are my forks.</p>
+                Copy linking steps
+              </button>
+              <p className="text-xs font-black leading-5 text-vault-muted">If Alexa says it cannot link, open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.</p>
             </MenuSection>
 
             <MenuSection

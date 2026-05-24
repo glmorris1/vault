@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { AppShell } from "./components/AppShell.jsx";
@@ -10,6 +10,7 @@ import { LocationPage } from "./pages/LocationPage.jsx";
 import { ImageDetailPage } from "./pages/ImageDetailPage.jsx";
 import { PinDetailPage } from "./pages/PinDetailPage.jsx";
 import { UpgradePage } from "./pages/UpgradePage.jsx";
+import { SharedVaultPage } from "./pages/SharedVaultPage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
@@ -27,6 +28,7 @@ export default function App() {
   const [cloudError, setCloudError] = useState("");
   const [biometricUnlocked, setBiometricUnlocked] = useState(false);
   const [theme, setTheme] = useState(() => window.localStorage.getItem(THEME_STORAGE_KEY) || "default");
+  const routerLocation = useLocation();
   const saveTimerRef = useRef(null);
   const lastCloudJsonRef = useRef("");
 
@@ -108,6 +110,16 @@ export default function App() {
     setOnboarded(true);
   }
 
+  if (window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
+    return (
+      <Routes>
+        <Route path="/" element={<SharedVaultPage />} />
+        <Route path="/share" element={<SharedVaultPage />} />
+        <Route path="*" element={<SharedVaultPage />} />
+      </Routes>
+    );
+  }
+
   if (!authReady) {
     return <VaultLoadingScreen message="Opening Vault..." />;
   }
@@ -140,7 +152,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          <AppShell title="Vault" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
+          <AppShell title="Vault" user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault} data={data}>
             <Dashboard data={data} updateData={updateData} />
           </AppShell>
         }
@@ -162,7 +174,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId"
         element={
-          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
+          <AppShell title="Image" subtitle="Tap the photo to add a pin" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault} data={data}>
             <ImageDetailPage data={data} updateData={updateData} />
           </AppShell>
         }
@@ -170,7 +182,7 @@ export default function App() {
       <Route
         path="/locations/:locationId/images/:imageId/pins/:pinId"
         element={
-          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
+          <AppShell title="Pin Details" subtitle="Stored items and notes" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault} data={data}>
             <PinDetailPage data={data} updateData={updateData} userId={user.uid} />
           </AppShell>
         }
@@ -178,7 +190,7 @@ export default function App() {
       <Route
         path="/upgrade"
         element={
-          <AppShell title="Upgrade" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault}>
+          <AppShell title="Upgrade" showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={setTheme} onAlphabetize={alphabetizeVault} data={data}>
             <UpgradePage />
           </AppShell>
         }
@@ -245,7 +257,7 @@ function LocationRoute({ data, updateData, user, cloudError, theme, onThemeChang
   const location = findLocation(data, locationId);
 
   return (
-    <AppShell title={location?.name || "Location"} showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={onThemeChange} onAlphabetize={onAlphabetize}>
+    <AppShell title={location?.name || "Location"} showBack user={user} onLogout={logoutUser} cloudError={cloudError} theme={theme} onThemeChange={onThemeChange} onAlphabetize={onAlphabetize} data={data}>
       <LocationPage data={data} updateData={updateData} userId={user.uid} />
     </AppShell>
   );
