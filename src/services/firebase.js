@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { Capacitor } from "@capacitor/core";
 import {
   createUserWithEmailAndPassword,
   browserLocalPersistence,
@@ -194,6 +195,7 @@ function setStoredAIUses(uses) {
 }
 
 async function setAuthPersistence(auth, rememberLogin) {
+  if (Capacitor.isNativePlatform()) return;
   try {
     await withTimeout(
       setPersistence(auth, rememberLogin ? browserLocalPersistence : browserSessionPersistence),
