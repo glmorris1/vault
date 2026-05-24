@@ -109,11 +109,7 @@ export default function App() {
   }
 
   if (!authReady) {
-    return (
-      <main className="grid min-h-svh place-items-center px-6 text-center">
-        <p className="text-lg font-black text-vault-ink">Opening Vault...</p>
-      </main>
-    );
+    return <VaultLoadingScreen message="Opening Vault..." />;
   }
 
   if (!user) {
@@ -136,11 +132,7 @@ export default function App() {
   }
 
   if (!vaultReady) {
-    return (
-      <main className="grid min-h-svh place-items-center px-6 text-center">
-        <p className="text-lg font-black text-vault-ink">Loading your Vault...</p>
-      </main>
-    );
+    return <VaultLoadingScreen message="Loading your Vault..." />;
   }
 
   return (
@@ -193,6 +185,20 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+function VaultLoadingScreen({ message }) {
+  return (
+    <main className="safe-bottom grid min-h-svh place-items-center bg-gradient-to-b from-pink-50 via-white to-pink-50 px-6 text-center">
+      <div>
+        <div className="mx-auto grid size-24 place-items-center rounded-[2rem] bg-white shadow-soft">
+          <img className="size-20 object-contain" src={vaultLogo} alt="" />
+        </div>
+        <h1 className="gold-4 mt-6 text-4xl font-black tracking-[0.16em]">Vault</h1>
+        <p className="mt-3 text-base font-black text-vault-muted">{message}</p>
+      </div>
+    </main>
   );
 }
 
