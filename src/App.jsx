@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Archive, Fingerprint } from "lucide-react";
+import { Fingerprint } from "lucide-react";
 import { AppShell } from "./components/AppShell.jsx";
 import { Button } from "./components/Button.jsx";
 import { Onboarding } from "./pages/Onboarding.jsx";
@@ -14,6 +14,7 @@ import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnbo
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
+import vaultLogo from "./assets/vault-watermark.svg";
 
 const THEME_STORAGE_KEY = "vault-theme";
 
@@ -215,8 +216,8 @@ function BiometricUnlockPage({ user, onUnlock, onLogout }) {
   return (
     <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
       <div className="w-full rounded-[2rem] bg-white p-6 text-center shadow-soft">
-        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-vault-pink text-vault-ink">
-          <Archive size={30} />
+        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-vault-pink">
+          <img className="size-12 object-contain" src={vaultLogo} alt="" />
         </div>
         <h1 className="gold-4 text-4xl font-black">Vault</h1>
         <p className="mt-2 text-base font-semibold text-vault-muted">Use Face ID or your device passcode to unlock Vault.</p>

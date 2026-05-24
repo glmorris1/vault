@@ -1,9 +1,10 @@
-import { Archive, Fingerprint, Lock, Mail, UserRound } from "lucide-react";
+import { Fingerprint, Lock, Mail, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { canUseBiometricUnlock, enableBiometricUnlock, getRememberedEmail, markBiometricSessionUnlocked, setRememberedEmail } from "../services/authPreferences.js";
 import { isFirebaseConfigured, loginUser, registerUser } from "../services/firebase.js";
+import vaultLogo from "../assets/vault-watermark.svg";
 
 export function LoginPage() {
   const [mode, setMode] = useState("register");
@@ -43,10 +44,13 @@ export function LoginPage() {
       setRememberedEmail(rememberLogin ? trimmedEmail : "");
       markBiometricSessionUnlocked(user.uid);
       if (useBiometrics) {
-        const enabled = await enableBiometricUnlock(user);
-        if (!enabled) {
-          setStatus("Signed in, but this device does not support Face ID unlock for Vault yet.");
-        }
+        enableBiometricUnlock(user)
+          .then((enabled) => {
+            if (!enabled) {
+              setStatus("Signed in. Face ID can be enabled later from this device.");
+            }
+          })
+          .catch(() => setStatus("Signed in. Face ID can be enabled later from this device."));
       }
     } catch (error) {
       setStatus(error.message.replace("Firebase: ", ""));
@@ -61,8 +65,8 @@ export function LoginPage() {
     <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
       <div className="w-full">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-white text-vault-ink shadow-soft">
-            <Archive size={30} />
+          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-white shadow-soft">
+            <img className="size-12 object-contain" src={vaultLogo} alt="" />
           </div>
           <h1 className="gold-4 text-4xl font-black">Vault</h1>
           <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Life. Organized.</p>

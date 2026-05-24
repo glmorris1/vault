@@ -116,17 +116,29 @@ async function canUseNativeBiometricUnlock() {
 async function verifyNativeBiometricUnlock(reason) {
   try {
     const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
-    await NativeBiometric.verifyIdentity({
-      title: "Vault",
-      subtitle: "Face ID",
-      description: "Use Face ID or your device passcode to continue.",
-      reason,
-      useFallback: true,
-    });
+    await withTimeout(
+      NativeBiometric.verifyIdentity({
+        title: "Vault",
+        subtitle: "Face ID",
+        description: "Use Face ID or your device passcode to continue.",
+        reason,
+        useFallback: true,
+      }),
+      8000,
+    );
     return true;
   } catch {
     return false;
   }
+}
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error("Timed out")), timeoutMs);
+    }),
+  ]);
 }
 
 function biometricKey(userId) {
