@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Palette, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -10,6 +10,8 @@ const themes = [
   { id: "green", label: "Green" },
   { id: "cream", label: "Linen" },
 ];
+
+const ALEXA_LINK_URL = "https://layla.amazon.com/api/skill/link/M3LH5P8TFXP45J";
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize }) {
   const navigate = useNavigate();
@@ -122,6 +124,49 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                   </button>
                 ))}
               </div>
+            </MenuSection>
+
+            <MenuSection
+              id="share"
+              icon={<Share2 size={21} />}
+              title="Share With Others"
+              open={openMenuSections.has("share")}
+              onToggle={() => toggleMenuSection("share")}
+            >
+              <button
+                className="flex min-h-12 w-fit items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
+                onClick={() => {
+                  window.navigator.share?.({
+                    title: "Vault",
+                    text: "Vault helps you remember where everything belongs.",
+                    url: "https://glmorris1.github.io/vault/",
+                  });
+                }}
+                type="button"
+              >
+                Share Vault
+              </button>
+            </MenuSection>
+
+            <MenuSection
+              id="alexa"
+              icon={<Mic size={21} />}
+              title="Alexa"
+              open={openMenuSections.has("alexa")}
+              onToggle={() => toggleMenuSection("alexa")}
+            >
+              <p className="text-sm font-semibold leading-6 text-vault-muted">
+                Connect Vault to Alexa so you can ask where saved items are.
+              </p>
+              <a
+                className="inline-flex min-h-12 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition active:scale-[0.98]"
+                href={ALEXA_LINK_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Connect Alexa
+              </a>
+              <p className="text-xs font-black leading-5 text-vault-muted">Try: Alexa, ask Vault where are my forks.</p>
             </MenuSection>
 
             <MenuSection

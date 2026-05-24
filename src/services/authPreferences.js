@@ -16,6 +16,8 @@ export function setRememberedEmail(email) {
 }
 
 export async function canUseBiometricUnlock() {
+  const nativeAvailable = await canUseNativeBiometricUnlock();
+  if (nativeAvailable) return true;
   if (!window.isSecureContext || !window.PublicKeyCredential) return false;
   if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") return false;
   try {
@@ -42,6 +44,14 @@ export async function enableBiometricUnlock(user) {
   const available = await canUseBiometricUnlock();
   if (!available) return false;
 
+  const nativeVerified = await verifyNativeBiometricUnlock("Enable Face ID for Vault");
+  if (nativeVerified) {
+    window.localStorage.setItem(biometricKey(user.uid), "native");
+    markBiometricSessionUnlocked(user.uid);
+    return true;
+  }
+
+  if (!window.PublicKeyCredential) return false;
   const credential = await navigator.credentials.create({
     publicKey: {
       challenge: randomChallenge(),
@@ -72,6 +82,13 @@ export async function unlockWithBiometrics(userId) {
   const credentialId = window.localStorage.getItem(biometricKey(userId));
   if (!credentialId) return false;
 
+  if (credentialId === "native") {
+    const verified = await verifyNativeBiometricUnlock("Unlock Vault");
+    if (!verified) return false;
+    markBiometricSessionUnlocked(userId);
+    return true;
+  }
+
   const credential = await navigator.credentials.get({
     publicKey: {
       challenge: randomChallenge(),
@@ -84,6 +101,32 @@ export async function unlockWithBiometrics(userId) {
   if (!credential) return false;
   markBiometricSessionUnlocked(userId);
   return true;
+}
+
+async function canUseNativeBiometricUnlock() {
+  try {
+    const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    const result = await NativeBiometric.isAvailable({ useFallback: true });
+    return Boolean(result?.isAvailable);
+  } catch {
+    return false;
+  }
+}
+
+async function verifyNativeBiometricUnlock(reason) {
+  try {
+    const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
+    await NativeBiometric.verifyIdentity({
+      title: "Vault",
+      subtitle: "Face ID",
+      description: "Use Face ID or your device passcode to continue.",
+      reason,
+      useFallback: true,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function biometricKey(userId) {
