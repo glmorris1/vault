@@ -5,6 +5,8 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   getAuth,
+  inMemoryPersistence,
+  initializeAuth,
   onAuthStateChanged,
   setPersistence,
   signInWithEmailAndPassword,
@@ -54,8 +56,11 @@ function getServices() {
   if (!isFirebaseConfigured) return null;
   if (!services) {
     const app = initializeApp(firebaseConfig);
+    const auth = Capacitor.isNativePlatform()
+      ? initializeAuth(app, { persistence: inMemoryPersistence })
+      : getAuth(app);
     services = {
-      auth: getAuth(app),
+      auth,
       db: getFirestore(app),
       functions: getFunctions(app),
       storage: getStorage(app),
