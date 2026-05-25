@@ -15,7 +15,7 @@ import {
   setRememberedEmail,
 } from "../services/authPreferences.js";
 import { isFirebaseConfigured, loginUser, registerUser } from "../services/firebase.js";
-import vaultLogo from "../assets/vault-watermark.svg";
+import vaultLogo from "../assets/vault-icon.png";
 
 export function LoginPage() {
   const rememberedEmail = getRememberedEmail();
@@ -114,8 +114,8 @@ export function LoginPage() {
     <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
       <div className="w-full">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-white shadow-soft">
-            <img className="size-12 object-contain" src={vaultLogo} alt="" />
+          <div className="mx-auto mb-4 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
+            <img className="size-16 object-cover" src={vaultLogo} alt="" />
           </div>
           <h1 className="gold-4 text-4xl font-black">Vault</h1>
           <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Life. Organized.</p>
