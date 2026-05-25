@@ -1,12 +1,18 @@
-import { Home, MapPin } from "lucide-react";
+import { CheckCircle, Home, LogIn, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card } from "../components/Card.jsx";
+import { createId } from "../data/storage.js";
+import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
 import { readSharePayload } from "../services/shareLinks.js";
 import vaultLogo from "../assets/vault-watermark.svg";
 
 export function SharedVaultPage() {
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -25,7 +31,39 @@ export function SharedVaultPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isFirebaseConfigured) return undefined;
+    return subscribeToAuth((nextUser) => {
+      setUser(nextUser);
+      setAuthReady(true);
+    });
+  }, []);
+
   const locations = payload?.locations || [];
+
+  async function addLocationsToVault() {
+    if (!user) {
+      setSaveStatus("Sign in to Vault on this device, then reopen this link to add these locations.");
+      return;
+    }
+    if (locations.length === 0) return;
+    setSaving(true);
+    setSaveStatus("");
+    try {
+      const current = await loadExistingVault(user.uid);
+      const importedLocations = locations.map(cloneSharedLocation);
+      await saveVaultToCloud(user.uid, {
+        ...current,
+        locations: [...(current.locations || []), ...importedLocations],
+      });
+      setSaveStatus(importedLocations.length === 1 ? "Added this location to your Vault." : `Added ${importedLocations.length} locations to your Vault.`);
+    } catch (error) {
+      console.error("Could not add shared locations to Vault", error);
+      setSaveStatus("Vault could not add these locations. Please check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <main className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 py-8 sm:px-6">
@@ -49,6 +87,34 @@ export function SharedVaultPage() {
         </Card>
       ) : (
         <section className="grid gap-4">
+          <Card className="p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+                {user ? <CheckCircle size={20} /> : <LogIn size={20} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl font-black text-vault-ink">Add to your Vault</h2>
+                <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">
+                  Save these shared locations into your own account so they show up with the rest of your Vault.
+                </p>
+                {!authReady && <p className="mt-2 text-sm font-semibold text-vault-muted">Checking your login...</p>}
+                {authReady && !user && (
+                  <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">
+                    Sign in to Vault on this device, then reopen this share link to save it.
+                  </p>
+                )}
+                {saveStatus && <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{saveStatus}</p>}
+                <button
+                  className="mt-4 inline-flex min-h-12 items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition disabled:cursor-not-allowed disabled:bg-vault-muted/45 active:scale-[0.98]"
+                  disabled={!authReady || !user || saving}
+                  onClick={addLocationsToVault}
+                  type="button"
+                >
+                  {saving ? "Adding..." : "Add shared locations"}
+                </button>
+              </div>
+            </div>
+          </Card>
           {locations.map((location) => (
             <SharedLocation key={location.id || location.name} location={location} />
           ))}
@@ -56,6 +122,39 @@ export function SharedVaultPage() {
       )}
     </main>
   );
+}
+
+function cloneSharedLocation(location) {
+  return {
+    ...location,
+    id: createId("location"),
+    rooms: (location.rooms || []).map(cloneSharedRoom),
+    images: (location.images || []).map(cloneSharedImage),
+  };
+}
+
+function cloneSharedRoom(room) {
+  return {
+    ...room,
+    id: createId("room"),
+    images: (room.images || []).map(cloneSharedImage),
+  };
+}
+
+function cloneSharedImage(image) {
+  return {
+    ...image,
+    id: createId("image"),
+    pins: (image.pins || []).map(cloneSharedPin),
+  };
+}
+
+function cloneSharedPin(pin) {
+  return {
+    ...pin,
+    id: createId("pin"),
+    items: (pin.items || []).map((item) => ({ ...item, id: createId("item") })),
+  };
 }
 
 function SharedLocation({ location }) {

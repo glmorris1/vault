@@ -12,6 +12,8 @@ const themes = [
   { id: "cream", label: "Linen" },
 ];
 
+const ALEXA_LINKING_STEPS = "Open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.";
+
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,6 +22,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   const [alphabetized, setAlphabetized] = useState(false);
   const [selectedShareIds, setSelectedShareIds] = useState(() => new Set());
   const [shareStatus, setShareStatus] = useState("");
+  const [alexaStatus, setAlexaStatus] = useState("");
 
   function toggleMenuSection(sectionId) {
     setOpenMenuSections((current) => {
@@ -37,6 +40,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
     setMenuOpen(false);
     setAlphabetized(false);
     setShareStatus("");
+    setAlexaStatus("");
   }
 
   function toggleShareLocation(locationId) {
@@ -72,6 +76,11 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
     } catch (error) {
       if (error?.name !== "AbortError") setShareStatus("The share link is ready, but this device could not open sharing.");
     }
+  }
+
+  async function copyAlexaLinkingSteps() {
+    const copied = await copyTextToClipboard(ALEXA_LINKING_STEPS);
+    setAlexaStatus(copied ? "Linking steps copied." : ALEXA_LINKING_STEPS);
   }
 
   useLayoutEffect(() => {
@@ -124,7 +133,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       {menuOpen && (
         <div className="fixed inset-0 z-50 bg-vault-ink/25 backdrop-blur-sm" onClick={closeMenu}>
           <aside
-            className="safe-bottom ml-auto flex h-full w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white p-5 shadow-2xl"
+            className="safe-bottom safe-top ml-auto flex h-full w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             aria-label="Vault menu"
           >
@@ -210,11 +219,12 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               </p>
               <button
                 className="inline-flex min-h-12 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition active:scale-[0.98]"
-                onClick={() => window.navigator.clipboard?.writeText("Open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.")}
+                onClick={copyAlexaLinkingSteps}
                 type="button"
               >
                 Copy linking steps
               </button>
+              {alexaStatus && <p className="rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{alexaStatus}</p>}
               <p className="text-xs font-black leading-5 text-vault-muted">If Alexa says it cannot link, open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.</p>
             </MenuSection>
 
@@ -290,6 +300,28 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       )}
     </div>
   );
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    await window.navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
 }
 
 function MenuSection({ icon, title, open, onToggle, children, className = "" }) {

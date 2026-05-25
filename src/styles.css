@@ -132,6 +132,10 @@ button * {
   padding-bottom: max(1rem, var(--vault-safe-bottom));
 }
 
+.safe-top {
+  padding-top: max(1rem, calc(var(--vault-safe-top) + 1rem));
+}
+
 .tap-highlight {
   -webkit-tap-highlight-color: transparent;
 }
