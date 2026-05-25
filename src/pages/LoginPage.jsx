@@ -24,11 +24,12 @@ export function LoginPage() {
   const [email, setEmail] = useState(() => rememberedEmail);
   const [password, setPassword] = useState("");
   const [rememberLogin, setRememberLogin] = useState(true);
-  const [useBiometrics, setUseBiometrics] = useState(false);
+  const [useBiometrics, setUseBiometrics] = useState(() => savedLoginRequiresBiometric());
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [savedCredentialsAvailable, setSavedCredentialsAvailable] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [triedAutomaticSavedLogin, setTriedAutomaticSavedLogin] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -43,13 +44,20 @@ export function LoginPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (mode !== "login" || !savedCredentialsAvailable || !savedLoginRequiresBiometric() || triedAutomaticSavedLogin || busy) return;
+    setTriedAutomaticSavedLogin(true);
+    handleSavedLogin();
+  }, [busy, mode, savedCredentialsAvailable, triedAutomaticSavedLogin]);
+
   async function handleSubmit(event) {
     event.preventDefault();
     setStatus("");
     setBusy(true);
     try {
       const trimmedEmail = email.trim();
-      const authOptions = { email: trimmedEmail, password, rememberLogin };
+      const shouldSaveLogin = rememberLogin || useBiometrics;
+      const authOptions = { email: trimmedEmail, password, rememberLogin: shouldSaveLogin };
       let user;
       if (mode === "register") {
         user = await registerUser({ username: username.trim(), ...authOptions });
@@ -57,10 +65,10 @@ export function LoginPage() {
         user = await loginUser(authOptions);
       }
 
-      setRememberedEmail(rememberLogin ? trimmedEmail : "");
+      setRememberedEmail(shouldSaveLogin ? trimmedEmail : "");
       markBiometricSessionUnlocked(user.uid);
       let saved = false;
-      if (rememberLogin || useBiometrics) {
+      if (shouldSaveLogin) {
         saved = await saveLoginCredentials({ user, password, requireBiometric: useBiometrics });
         setSavedCredentialsAvailable(saved);
       } else {
@@ -168,7 +176,7 @@ export function LoginPage() {
             <div className="grid gap-2 rounded-2xl bg-pink-50 p-3">
               <label className="flex min-h-11 items-center gap-3 rounded-xl bg-white px-3 text-sm font-black text-vault-ink shadow-sm">
                 <input className="size-5 accent-vault-blue" type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} />
-                Remember this login
+                Remember email and password
               </label>
               <label className={`flex min-h-11 items-center gap-3 rounded-xl bg-white px-3 text-sm font-black shadow-sm ${biometricsAvailable ? "text-vault-ink" : "text-vault-muted"}`}>
                 <input
@@ -176,10 +184,13 @@ export function LoginPage() {
                   type="checkbox"
                   checked={useBiometrics}
                   disabled={!biometricsAvailable}
-                  onChange={(event) => setUseBiometrics(event.target.checked)}
+                  onChange={(event) => {
+                    setUseBiometrics(event.target.checked);
+                    if (event.target.checked) setRememberLogin(true);
+                  }}
                 />
                 <Fingerprint size={18} />
-                Use Face ID unlock
+                Use Face ID next time
               </label>
               {!biometricsAvailable && <p className="px-1 text-xs font-semibold leading-5 text-vault-muted">Face ID unlock appears when this device supports secure biometric sign-in.</p>}
             </div>
@@ -192,7 +203,7 @@ export function LoginPage() {
                 disabled={busy}
               >
                 <Fingerprint size={18} />
-                {savedLoginRequiresBiometric() ? "Sign in with Face ID" : "Use saved login"}
+                {savedLoginRequiresBiometric() ? "Sign in with Face ID" : "Sign in with saved password"}
               </button>
             )}
 

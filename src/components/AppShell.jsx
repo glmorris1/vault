@@ -12,7 +12,10 @@ const themes = [
   { id: "cream", label: "Linen" },
 ];
 
+const ALEXA_SKILL_ID = "amzn1.ask.skill.2bec6e97-f50b-4a9b-b008-8578ab03f8f8";
 const ALEXA_LINKING_STEPS = "Open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.";
+const ALEXA_SKILL_WEB_URL = `https://alexa.amazon.com/spa/index.html#skills/dp/${ALEXA_SKILL_ID}`;
+const ALEXA_SKILL_APP_URL = `alexa://skills/dp/${ALEXA_SKILL_ID}`;
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
   const navigate = useNavigate();
@@ -73,9 +76,18 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
         await window.navigator.clipboard.writeText(url);
         setShareStatus("Share link copied.");
       }
+      setSelectedShareIds(new Set());
     } catch (error) {
       if (error?.name !== "AbortError") setShareStatus("The share link is ready, but this device could not open sharing.");
     }
+  }
+
+  function openAlexaLinking() {
+    setAlexaStatus("Opening Alexa. If it does not open, use the steps below.");
+    window.location.href = ALEXA_SKILL_APP_URL;
+    window.setTimeout(() => {
+      window.location.href = ALEXA_SKILL_WEB_URL;
+    }, 900);
   }
 
   async function copyAlexaLinkingSteps() {
@@ -219,10 +231,17 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
               </p>
               <button
                 className="inline-flex min-h-12 w-fit items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition active:scale-[0.98]"
+                onClick={openAlexaLinking}
+                type="button"
+              >
+                Link Alexa account
+              </button>
+              <button
+                className="inline-flex min-h-11 w-fit items-center justify-center rounded-2xl bg-white px-4 text-sm font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
                 onClick={copyAlexaLinkingSteps}
                 type="button"
               >
-                Copy linking steps
+                Copy backup steps
               </button>
               {alexaStatus && <p className="rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{alexaStatus}</p>}
               <p className="text-xs font-black leading-5 text-vault-muted">If Alexa says it cannot link, open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.</p>

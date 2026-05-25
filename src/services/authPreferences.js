@@ -62,19 +62,11 @@ export async function getSavedLoginCredentials({ requireBiometric = false } = {}
   if (!isNativeApp()) return null;
   try {
     const { NativeBiometric } = await import("@capgo/capacitor-native-biometric");
-    const credentials = requireBiometric
-      ? await NativeBiometric.getSecureCredentials({
-          server: NATIVE_CREDENTIAL_SERVER,
-          reason: "Unlock Vault",
-          title: "Vault",
-          subtitle: "Face ID",
-          description: "Use Face ID or your device passcode to sign in.",
-          negativeButtonText: "Cancel",
-        })
-      : await NativeBiometric.getCredentials({ server: NATIVE_CREDENTIAL_SERVER });
+    const credentials = requireBiometric ? await getBiometricProtectedCredentials(NativeBiometric) : await NativeBiometric.getCredentials({ server: NATIVE_CREDENTIAL_SERVER });
     if (!credentials?.username || !credentials?.password) return null;
     return { email: credentials.username, password: credentials.password };
-  } catch {
+  } catch (error) {
+    console.warn("Vault could not read saved login credentials.", error);
     return null;
   }
 }
@@ -208,6 +200,29 @@ async function verifyNativeBiometricUnlock(reason) {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function getBiometricProtectedCredentials(NativeBiometric) {
+  try {
+    return await NativeBiometric.getSecureCredentials({
+      server: NATIVE_CREDENTIAL_SERVER,
+      reason: "Unlock Vault",
+      title: "Vault",
+      subtitle: "Face ID",
+      description: "Use Face ID or your device passcode to sign in.",
+      negativeButtonText: "Cancel",
+    });
+  } catch (error) {
+    console.warn("Vault secure credential read failed; trying explicit Face ID verification.", error);
+    await NativeBiometric.verifyIdentity({
+      title: "Vault",
+      subtitle: "Face ID",
+      description: "Use Face ID or your device passcode to sign in.",
+      reason: "Unlock Vault",
+      useFallback: true,
+    });
+    return NativeBiometric.getCredentials({ server: NATIVE_CREDENTIAL_SERVER });
   }
 }
 
