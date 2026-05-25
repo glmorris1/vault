@@ -187,6 +187,20 @@ export async function analyzePhotoWithAI({ imageId, storagePath, photoDataUrl, p
   return result.data;
 }
 
+export async function createSharedVaultLink(payload) {
+  const { functions } = getServices();
+  const createShareLink = httpsCallable(functions, "createShareLink");
+  const result = await createShareLink(payload);
+  return result.data;
+}
+
+export async function loadSharedVaultLink(shareId) {
+  const projectId = firebaseConfig.projectId;
+  const response = await fetch(`https://us-central1-${projectId}.cloudfunctions.net/getShareLink?id=${encodeURIComponent(shareId)}`);
+  if (!response.ok) return null;
+  return response.json();
+}
+
 export async function loadExistingVault(userId) {
   const { db } = getServices();
   const snapshot = await getDoc(doc(db, "vaults", userId));

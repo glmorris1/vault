@@ -57,7 +57,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       setShareStatus("Choose at least one location to share.");
       return;
     }
-    const url = createShareUrl(locations);
+    const url = await createShareUrl(locations);
     try {
       if (window.navigator.share) {
         await window.navigator.share({

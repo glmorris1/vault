@@ -1,17 +1,30 @@
 import { Home, MapPin } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../components/Card.jsx";
 import { readSharePayload } from "../services/shareLinks.js";
 import vaultLogo from "../assets/vault-watermark.svg";
 
 export function SharedVaultPage() {
-  const payload = useMemo(() => {
-    try {
-      return readSharePayload();
-    } catch {
-      return null;
-    }
+  const [payload, setPayload] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    readSharePayload()
+      .then((result) => {
+        if (active) setPayload(result);
+      })
+      .catch(() => {
+        if (active) setPayload(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
+
   const locations = payload?.locations || [];
 
   return (
@@ -24,7 +37,12 @@ export function SharedVaultPage() {
         <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Shared Locations</p>
       </header>
 
-      {locations.length === 0 ? (
+      {loading ? (
+        <Card className="p-5 text-center">
+          <h2 className="text-xl font-black text-vault-ink">Loading shared locations...</h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">Vault is opening the selected locations.</p>
+        </Card>
+      ) : locations.length === 0 ? (
         <Card className="p-5 text-center">
           <h2 className="text-xl font-black text-vault-ink">This share link is empty</h2>
           <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">Ask the Vault owner to send a new link with at least one location selected.</p>

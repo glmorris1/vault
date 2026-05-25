@@ -1,15 +1,26 @@
+import { createSharedVaultLink, loadSharedVaultLink } from "./firebase.js";
+
 const SHARE_BASE_URL = "https://glmorris1.github.io/vault/";
 
-export function createShareUrl(locations) {
+export async function createShareUrl(locations) {
   const payload = {
     version: 1,
     createdAt: new Date().toISOString(),
     locations: (locations || []).map(prepareSharedLocation),
   };
+  try {
+    const result = await createSharedVaultLink(payload);
+    if (result?.url) return result.url;
+  } catch (error) {
+    console.warn("Vault short share link failed; falling back to embedded link.", error);
+  }
   return `${SHARE_BASE_URL}?share=${encodePayload(payload)}`;
 }
 
-export function readSharePayload() {
+export async function readSharePayload() {
+  const shareId = new URLSearchParams(window.location.search).get("shareId");
+  if (shareId) return loadSharedVaultLink(shareId);
+
   const searchData = new URLSearchParams(window.location.search).get("share");
   if (searchData) return decodePayload(searchData);
 

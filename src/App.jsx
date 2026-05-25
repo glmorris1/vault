@@ -110,7 +110,8 @@ export default function App() {
     setOnboarded(true);
   }
 
-  const hasShareLink = new URLSearchParams(routerLocation.search).has("share");
+  const shareParams = new URLSearchParams(routerLocation.search);
+  const hasShareLink = shareParams.has("share") || shareParams.has("shareId");
 
   if (hasShareLink || window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
     return (

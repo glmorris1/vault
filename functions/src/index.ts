@@ -23,6 +23,8 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 const REFRESH_TOKEN_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+const SHARE_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SHARE_LINK_BASE_URL = "https://glmorris1.github.io/vault/";
 const HOUSEHOLD_ITEM_ALIASES: Record<string, string[]> = {
   "adhesive bandages": ["bandages", "bandaids", "band aids"],
   batteries: ["battery"],
@@ -133,6 +135,74 @@ export const analyzePhotoWithAI = onCall(
       logger.error("analyzePhotoWithAI unexpected failure", error);
       throw new HttpsError("failed-precondition", "AI analysis could not start on the server. Please try again.");
     }
+  },
+);
+
+export const createShareLink = onCall(
+  {
+    timeoutSeconds: 30,
+    memory: "256MiB",
+    cors: true,
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Sign in before sharing locations.");
+    }
+
+    const locations = Array.isArray(request.data?.locations) ? request.data.locations : [];
+    if (locations.length === 0) {
+      throw new HttpsError("invalid-argument", "Choose at least one location to share.");
+    }
+
+    const id = randomBytes(9).toString("base64url");
+    const payload = {
+      version: 1,
+      createdAt: new Date().toISOString(),
+      locations,
+    };
+
+    await getFirestore().collection("shareLinks").doc(id).set({
+      ownerUid: uid,
+      payload,
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + SHARE_LINK_TTL_MS),
+    });
+
+    return {
+      id,
+      url: `${SHARE_LINK_BASE_URL}?shareId=${id}`,
+    };
+  },
+);
+
+export const getShareLink = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: "256MiB",
+    cors: true,
+  },
+  async (request, response) => {
+    const id = typeof request.query.id === "string" ? request.query.id.trim() : "";
+    if (!id || !/^[A-Za-z0-9_-]{8,40}$/.test(id)) {
+      response.status(400).json({ error: "invalid_share_id" });
+      return;
+    }
+
+    const snapshot = await getFirestore().collection("shareLinks").doc(id).get();
+    const data = snapshot.data();
+    if (!snapshot.exists || !data?.payload) {
+      response.status(404).json({ error: "share_link_not_found" });
+      return;
+    }
+
+    const expiresAt = data.expiresAt?.toMillis?.() || 0;
+    if (expiresAt && expiresAt <= Date.now()) {
+      response.status(404).json({ error: "share_link_expired" });
+      return;
+    }
+
+    response.status(200).json(data.payload);
   },
 );
 
