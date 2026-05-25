@@ -53,8 +53,12 @@ function prepareSharedImage(image) {
     storagePath: image.storagePath || "",
     pins: (image.pins || []).map((pin) => ({
       id: pin.id,
-      label: pin.label,
-      note: pin.note,
+      name: pin.name || pin.label || "",
+      notes: pin.notes || pin.note || "",
+      label: pin.label || pin.name || "",
+      note: pin.note || pin.notes || "",
+      xPercent: clampPercent(pin.xPercent),
+      yPercent: clampPercent(pin.yPercent),
       photos: (pin.photos || []).map((photo) => ({
         id: photo.id,
         name: photo.name,
@@ -64,10 +68,19 @@ function prepareSharedImage(image) {
       items: (pin.items || []).map((item) => ({
         id: item.id,
         name: item.name,
-        note: item.note,
+        notes: item.notes || item.note || "",
+        note: item.note || item.notes || "",
+        quantity: item.quantity || "",
+        estimatedValue: item.estimatedValue || "",
       })),
     })),
   };
+}
+
+function clampPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 50;
+  return Math.max(0, Math.min(100, number));
 }
 
 function encodePayload(payload) {

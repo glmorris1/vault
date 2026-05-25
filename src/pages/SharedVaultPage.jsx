@@ -153,9 +153,25 @@ function cloneSharedPin(pin) {
   return {
     ...pin,
     id: createId("pin"),
+    name: pin.name || pin.label || "",
+    notes: pin.notes || pin.note || "",
+    xPercent: clampPercent(pin.xPercent),
+    yPercent: clampPercent(pin.yPercent),
     photos: (pin.photos || []).map((photo) => ({ ...photo, id: createId("pinphoto") })),
-    items: (pin.items || []).map((item) => ({ ...item, id: createId("item") })),
+    items: (pin.items || []).map((item) => ({
+      ...item,
+      id: createId("item"),
+      notes: item.notes || item.note || "",
+      quantity: item.quantity || "",
+      estimatedValue: item.estimatedValue || "",
+    })),
   };
+}
+
+function clampPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 50;
+  return Math.max(0, Math.min(100, number));
 }
 
 function SharedLocation({ location }) {
@@ -230,14 +246,14 @@ function SharedPin({ pin }) {
       <div className="flex items-start gap-2">
         <MapPin className="mt-0.5 shrink-0 text-vault-muted" size={16} />
         <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-black text-vault-ink">{pin.label || "Pin"}</p>
-          {pin.note && <p className="mt-1 break-words text-xs font-semibold leading-5 text-vault-muted">{pin.note}</p>}
+          <p className="break-words text-sm font-black text-vault-ink">{pin.name || pin.label || "Pin"}</p>
+          {(pin.notes || pin.note) && <p className="mt-1 break-words text-xs font-semibold leading-5 text-vault-muted">{pin.notes || pin.note}</p>}
           {items.length > 0 && (
             <ul className="mt-2 grid gap-1">
               {items.map((item) => (
                 <li key={item.id || item.name} className="break-words text-sm font-semibold text-vault-muted">
                   {item.name}
-                  {item.note ? `: ${item.note}` : ""}
+                  {item.notes || item.note ? `: ${item.notes || item.note}` : ""}
                 </li>
               ))}
             </ul>
@@ -246,7 +262,7 @@ function SharedPin({ pin }) {
             <div className="mt-3 grid gap-2">
               {photos.map((photo) => (
                 <div key={photo.id || photo.name} className="overflow-hidden rounded-xl bg-vault-pink/50">
-                  <img className="h-auto max-h-56 w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.label || "Shared detail photo"} />
+                  <img className="h-auto max-h-56 w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.name || pin.label || "Shared detail photo"} />
                 </div>
               ))}
             </div>
