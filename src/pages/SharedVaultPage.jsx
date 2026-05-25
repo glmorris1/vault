@@ -153,6 +153,7 @@ function cloneSharedPin(pin) {
   return {
     ...pin,
     id: createId("pin"),
+    photos: (pin.photos || []).map((photo) => ({ ...photo, id: createId("pinphoto") })),
     items: (pin.items || []).map((item) => ({ ...item, id: createId("item") })),
   };
 }
@@ -203,6 +204,11 @@ function SharedImage({ image }) {
   return (
     <div className="rounded-2xl bg-white p-3 shadow-sm">
       <p className="text-sm font-black text-vault-ink">{image.name || "Photo"}</p>
+      {image.photoDataUrl && (
+        <div className="mt-3 overflow-hidden rounded-2xl bg-vault-pink/50">
+          <img className="h-auto max-h-72 w-full object-cover" src={image.photoDataUrl} alt={image.name || "Shared location photo"} />
+        </div>
+      )}
       {pins.length === 0 ? (
         <p className="mt-1 text-xs font-semibold text-vault-muted">No pins listed.</p>
       ) : (
@@ -218,6 +224,7 @@ function SharedImage({ image }) {
 
 function SharedPin({ pin }) {
   const items = pin.items || [];
+  const photos = pin.photos || [];
   return (
     <div className="rounded-xl border border-rose-100 p-3">
       <div className="flex items-start gap-2">
@@ -234,6 +241,15 @@ function SharedPin({ pin }) {
                 </li>
               ))}
             </ul>
+          )}
+          {photos.length > 0 && (
+            <div className="mt-3 grid gap-2">
+              {photos.map((photo) => (
+                <div key={photo.id || photo.name} className="overflow-hidden rounded-xl bg-vault-pink/50">
+                  <img className="h-auto max-h-56 w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.label || "Shared detail photo"} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

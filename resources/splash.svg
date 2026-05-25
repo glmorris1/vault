@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732" role="img" aria-label="Vault launch image">
+  <rect width="2732" height="2732" fill="#fff7fb"/>
+  <g transform="translate(1046 846) scale(1.0)">
+    <rect width="640" height="640" rx="152" fill="#ffffff"/>
+    <g fill="none" stroke="#5d6066" stroke-linecap="round" stroke-linejoin="round" stroke-width="11" opacity="0.62">
+      <path d="M286 102c-43 2-77 30-91 68-36 5-64 32-70 67-30 16-49 47-49 83 0 41 26 76 62 89 7 48 49 85 99 85h49V102Z"/>
+      <path d="M192 170c23 13 46 33 65 58"/>
+      <path d="M122 260c31-6 65 4 97 32"/>
+      <path d="M138 409c23-25 51-38 86-39"/>
+      <path d="M220 494c-6-33 1-68 22-106"/>
+      <path d="M286 158l-55 46 38 73-69 38 43 73-53 58"/>
+      <path d="M186 190l-10 68-54 3"/>
+      <path d="M214 291l-42 78-72-18"/>
+      <path d="M269 277l-27 111 44 39"/>
+      <path d="M231 204l-70 34 12 53"/>
+      <path d="M173 369l-28 57"/>
+      <path d="M242 388l-69 3"/>
+    </g>
+    <g opacity="0.7">
+      <g transform="translate(366 156)">
+        <circle cx="0" cy="0" r="16" fill="#d79aa8"/>
+        <ellipse cx="0" cy="-47" rx="29" ry="50" fill="#f6b8c5"/>
+        <ellipse cx="45" cy="-14" rx="29" ry="50" fill="#fac7d0" transform="rotate(72 45 -14)"/>
+        <ellipse cx="28" cy="39" rx="29" ry="50" fill="#f4aebd" transform="rotate(144 28 39)"/>
+        <ellipse cx="-28" cy="39" rx="29" ry="50" fill="#f9cbd4" transform="rotate(216 -28 39)"/>
+        <ellipse cx="-45" cy="-14" rx="29" ry="50" fill="#f3a7b8" transform="rotate(288 -45 -14)"/>
+      </g>
+      <g transform="translate(478 252)" opacity="0.78">
+        <circle cx="0" cy="0" r="13" fill="#cf8e9e"/>
+        <ellipse cx="0" cy="-39" rx="24" ry="42" fill="#facbd5"/>
+        <ellipse cx="37" cy="-12" rx="24" ry="42" fill="#f7b7c5" transform="rotate(72 37 -12)"/>
+        <ellipse cx="23" cy="32" rx="24" ry="42" fill="#fbd3db" transform="rotate(144 23 32)"/>
+        <ellipse cx="-23" cy="32" rx="24" ry="42" fill="#f4a9ba" transform="rotate(216 -23 32)"/>
+        <ellipse cx="-37" cy="-12" rx="24" ry="42" fill="#f8c1cd" transform="rotate(288 -37 -12)"/>
+      </g>
+    </g>
+  </g>
+  <text x="1366" y="1645" text-anchor="middle" font-family="Georgia, serif" font-size="176" font-weight="700" letter-spacing="24" fill="#b34783">VAULT</text>
+  <text x="1366" y="1745" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="700" letter-spacing="18" fill="#5d6066">LIFE. ORGANIZED.</text>
+</svg>

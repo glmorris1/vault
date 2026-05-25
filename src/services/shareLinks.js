@@ -49,10 +49,18 @@ function prepareSharedImage(image) {
   return {
     id: image.id,
     name: image.name,
+    photoDataUrl: image.photoDataUrl || "",
+    storagePath: image.storagePath || "",
     pins: (image.pins || []).map((pin) => ({
       id: pin.id,
       label: pin.label,
       note: pin.note,
+      photos: (pin.photos || []).map((photo) => ({
+        id: photo.id,
+        name: photo.name,
+        photoDataUrl: photo.photoDataUrl || "",
+        storagePath: photo.storagePath || "",
+      })),
       items: (pin.items || []).map((item) => ({
         id: item.id,
         name: item.name,
