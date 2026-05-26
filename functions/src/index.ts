@@ -979,8 +979,10 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "Do not guess hidden contents.",
     "If a cabinet, drawer, box, or container is closed, label the storage area only and leave visibleItems empty unless items are actually visible.",
     "If a cabinet, drawer, bin, shelf, or container is open and items are visible, suggest concise likely item names.",
-    "If books are visible, try to read the spine or cover text and list each readable book title as its own visibleItems entry.",
-    "For books, prefer exact visible titles over generic labels like books, book stack, or novels. If a title is partly obscured, include only the readable part and do not invent missing words.",
+    "If books are visible, list a book title only when the exact title words are clearly readable on the spine or cover.",
+    "Never invent, infer, autocomplete, or summarize book titles from the topic, cover art, author, color, or surrounding context.",
+    "If a book topic is recognizable but the title is not clearly readable, use a generic item such as anatomy book, cookbook, textbook, or unreadable book instead of a made-up title.",
+    "If only part of a title is clearly readable, include only the exact readable words and add partial title. Do not fill in missing words.",
   ].join(" ");
 }
 
@@ -1064,7 +1066,7 @@ const analysisSchema = {
           visibleItems: {
             type: "array",
             description:
-              "Concise visible item names. If books are visible, include each readable book title as a separate item instead of only saying books.",
+              "Concise visible item names. If books are visible, include each clearly readable exact book title as a separate item. Do not invent book titles; use generic topic labels when titles are not readable.",
             items: {
               type: "string",
             },
