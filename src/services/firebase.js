@@ -115,14 +115,25 @@ export async function loginUser({ email, password, rememberLogin = true }) {
 export async function sendVaultPasswordReset(email) {
   const { auth } = getServices();
   const resetUrl = `${getVaultWebBaseUrl()}reset-password`;
-  await withTimeout(
-    sendPasswordResetEmail(auth, email, {
-      url: resetUrl,
-      handleCodeInApp: true,
-    }),
-    20000,
-    "Sending the reset email is taking too long. Please check your connection and try again.",
-  );
+  try {
+    await withTimeout(
+      sendPasswordResetEmail(auth, email, {
+        url: resetUrl,
+        handleCodeInApp: true,
+      }),
+      20000,
+      "Sending the reset email is taking too long. Please check your connection and try again.",
+    );
+    return { usesVaultResetPage: true };
+  } catch (error) {
+    if (!isUnauthorizedContinueUriError(error)) throw error;
+    await withTimeout(
+      sendPasswordResetEmail(auth, email),
+      20000,
+      "Sending the reset email is taking too long. Please check your connection and try again.",
+    );
+    return { usesVaultResetPage: false };
+  }
 }
 
 export async function getPasswordResetEmail(oobCode) {
@@ -252,6 +263,11 @@ function getVaultWebBaseUrl() {
     return new URL(import.meta.env.BASE_URL, window.location.origin).toString();
   }
   return "https://glmorris1.github.io/vault/";
+}
+
+function isUnauthorizedContinueUriError(error) {
+  const message = `${error?.code || ""} ${error?.message || ""}`;
+  return message.includes("auth/unauthorized-continue-uri") || message.includes("unauthorized-continue-uri");
 }
 
 async function setAuthPersistence(auth, rememberLogin) {

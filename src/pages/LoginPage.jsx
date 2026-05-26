@@ -119,8 +119,12 @@ export function LoginPage() {
     }
     setResetBusy(true);
     try {
-      await sendVaultPasswordReset(trimmedEmail);
-      setStatus("Password reset email sent. Open the link in your email to choose a new password.");
+      const resetResult = await sendVaultPasswordReset(trimmedEmail);
+      setStatus(
+        resetResult?.usesVaultResetPage
+          ? "Password reset email sent. Open the link in your email to choose a new password."
+          : "Password reset email sent. Open the link in your email to reset your password.",
+      );
       setRememberedEmail(trimmedEmail);
     } catch (error) {
       setStatus(formatPasswordResetError(error));
