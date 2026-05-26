@@ -16,7 +16,8 @@ import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnbo
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
-import vaultLogo from "./assets/vault-watermark.svg";
+
+const vaultLogo = "./vault-icon.png";
 
 const THEME_STORAGE_KEY = "vault-theme";
 
@@ -219,8 +220,8 @@ function VaultLoadingScreen({ message }) {
   return (
     <main className="safe-bottom grid min-h-svh place-items-center bg-gradient-to-b from-pink-50 via-white to-pink-50 px-6 text-center">
       <div>
-        <div className="mx-auto grid size-24 place-items-center rounded-[2rem] bg-white shadow-soft">
-          <img className="size-20 object-contain" src={vaultLogo} alt="" />
+        <div className="mx-auto size-20 overflow-hidden rounded-[2rem] bg-white shadow-soft">
+          <img className="size-20 object-cover" src={vaultLogo} alt="" />
         </div>
         <h1 className="gold-4 mt-6 text-4xl font-black tracking-[0.16em]">Vault</h1>
         <p className="mt-3 text-base font-black text-vault-muted">{message}</p>
@@ -249,8 +250,8 @@ function BiometricUnlockPage({ user, onUnlock, onLogout }) {
   return (
     <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
       <div className="w-full rounded-[2rem] bg-white p-6 text-center shadow-soft">
-        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-vault-pink">
-          <img className="size-12 object-contain" src={vaultLogo} alt="" />
+        <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
+          <img className="size-16 object-cover" src={vaultLogo} alt="" />
         </div>
         <h1 className="gold-4 text-4xl font-black">Vault</h1>
         <p className="mt-2 text-base font-semibold text-vault-muted">Use Face ID or your device passcode to unlock Vault.</p>
