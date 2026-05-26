@@ -114,7 +114,7 @@ export async function loginUser({ email, password, rememberLogin = true }) {
 
 export async function sendVaultPasswordReset(email) {
   const { auth } = getServices();
-  const resetUrl = `${getVaultWebBaseUrl()}reset-password`;
+  const resetUrl = `${getVaultWebBaseUrl()}?mode=resetPassword`;
   try {
     await withTimeout(
       sendPasswordResetEmail(auth, email, {

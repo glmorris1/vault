@@ -79,6 +79,7 @@ export function ResetPasswordPage() {
           </div>
           <h1 className="gold-4 text-4xl font-black">Vault</h1>
           <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Reset Password</p>
+          <p className="mt-2 text-base font-medium text-vault-muted">Choose a new password to get back to your saved places.</p>
         </div>
 
         <Card className="p-5">
