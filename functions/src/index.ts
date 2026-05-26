@@ -979,6 +979,8 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "Do not guess hidden contents.",
     "If a cabinet, drawer, box, or container is closed, label the storage area only and leave visibleItems empty unless items are actually visible.",
     "If a cabinet, drawer, bin, shelf, or container is open and items are visible, suggest concise likely item names.",
+    "If books are visible, try to read the spine or cover text and list each readable book title as its own visibleItems entry.",
+    "For books, prefer exact visible titles over generic labels like books, book stack, or novels. If a title is partly obscured, include only the readable part and do not invent missing words.",
   ].join(" ");
 }
 
@@ -1061,6 +1063,8 @@ const analysisSchema = {
           },
           visibleItems: {
             type: "array",
+            description:
+              "Concise visible item names. If books are visible, include each readable book title as a separate item instead of only saying books.",
             items: {
               type: "string",
             },
@@ -1107,7 +1111,7 @@ function normalizeSuggestion(raw: any, index: number): AIPhotoSuggestion {
     xPercent,
     yPercent,
     confidence: clampNumber(raw?.confidence, 0, 1),
-    visibleItems: Array.isArray(raw?.visibleItems) ? raw.visibleItems.map((item: unknown) => String(item).slice(0, 60)).filter(Boolean) : [],
+    visibleItems: Array.isArray(raw?.visibleItems) ? raw.visibleItems.map((item: unknown) => String(item).slice(0, 100)).filter(Boolean) : [],
     notes: String(raw?.notes || "Only include what is visible. Do not guess hidden contents.").slice(0, 240),
   };
 }
