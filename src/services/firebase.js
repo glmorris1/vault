@@ -4,14 +4,17 @@ import {
   createUserWithEmailAndPassword,
   browserLocalPersistence,
   browserSessionPersistence,
+  confirmPasswordReset,
   getAuth,
   inMemoryPersistence,
   initializeAuth,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  verifyPasswordResetCode,
 } from "firebase/auth";
 import { doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -107,6 +110,37 @@ export async function loginUser({ email, password, rememberLogin = true }) {
     "Signing in is taking too long. Please check your connection and try again.",
   );
   return credential.user;
+}
+
+export async function sendVaultPasswordReset(email) {
+  const { auth } = getServices();
+  const resetUrl = `${getVaultWebBaseUrl()}reset-password`;
+  await withTimeout(
+    sendPasswordResetEmail(auth, email, {
+      url: resetUrl,
+      handleCodeInApp: true,
+    }),
+    20000,
+    "Sending the reset email is taking too long. Please check your connection and try again.",
+  );
+}
+
+export async function getPasswordResetEmail(oobCode) {
+  const { auth } = getServices();
+  return withTimeout(
+    verifyPasswordResetCode(auth, oobCode),
+    20000,
+    "Checking this reset link is taking too long. Please try opening it again.",
+  );
+}
+
+export async function resetVaultPassword({ oobCode, password }) {
+  const { auth } = getServices();
+  await withTimeout(
+    confirmPasswordReset(auth, oobCode, password),
+    20000,
+    "Resetting your password is taking too long. Please check your connection and try again.",
+  );
 }
 
 export async function logoutUser() {
@@ -211,6 +245,13 @@ function setStoredAIUses(uses) {
   const value = Number.isFinite(uses) ? uses : 0;
   window.localStorage.setItem(AI_USAGE_STORAGE_KEY, String(value));
   window.dispatchEvent(new CustomEvent("vault-ai-usage-changed", { detail: { uses: value } }));
+}
+
+function getVaultWebBaseUrl() {
+  if (!Capacitor.isNativePlatform()) {
+    return new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+  }
+  return "https://glmorris1.github.io/vault/";
 }
 
 async function setAuthPersistence(auth, rememberLogin) {

@@ -5,6 +5,7 @@ import { AppShell } from "./components/AppShell.jsx";
 import { Button } from "./components/Button.jsx";
 import { Onboarding } from "./pages/Onboarding.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { Dashboard } from "./pages/Dashboard.jsx";
 import { LocationPage } from "./pages/LocationPage.jsx";
 import { ImageDetailPage } from "./pages/ImageDetailPage.jsx";
@@ -112,6 +113,7 @@ export default function App() {
 
   const shareParams = new URLSearchParams(routerLocation.search);
   const hasShareLink = shareParams.has("share") || shareParams.has("shareId");
+  const isPasswordResetLink = routerLocation.pathname.startsWith("/reset-password") || (shareParams.get("mode") === "resetPassword" && shareParams.has("oobCode"));
 
   if (hasShareLink || window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
     return (
@@ -119,6 +121,16 @@ export default function App() {
         <Route path="/" element={<SharedVaultPage />} />
         <Route path="/share" element={<SharedVaultPage />} />
         <Route path="*" element={<SharedVaultPage />} />
+      </Routes>
+    );
+  }
+
+  if (isPasswordResetLink) {
+    return (
+      <Routes>
+        <Route path="/" element={<ResetPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="*" element={<ResetPasswordPage />} />
       </Routes>
     );
   }

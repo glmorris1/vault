@@ -14,7 +14,7 @@ import {
   saveLoginCredentials,
   setRememberedEmail,
 } from "../services/authPreferences.js";
-import { isFirebaseConfigured, loginUser, registerUser } from "../services/firebase.js";
+import { isFirebaseConfigured, loginUser, registerUser, sendVaultPasswordReset } from "../services/firebase.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -30,6 +30,7 @@ export function LoginPage() {
   const [savedCredentialsAvailable, setSavedCredentialsAvailable] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
   const [triedAutomaticSavedLogin, setTriedAutomaticSavedLogin] = useState(false);
 
   useEffect(() => {
@@ -106,6 +107,25 @@ export function LoginPage() {
       setStatus(error.message.replace("Firebase: ", ""));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    const trimmedEmail = email.trim();
+    setStatus("");
+    if (!trimmedEmail) {
+      setStatus("Enter your email first, then tap Forgot password.");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await sendVaultPasswordReset(trimmedEmail);
+      setStatus("Password reset email sent. Open the link in your email to choose a new password.");
+      setRememberedEmail(trimmedEmail);
+    } catch (error) {
+      setStatus(formatPasswordResetError(error));
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -208,14 +228,35 @@ export function LoginPage() {
               </button>
             )}
 
-            {status && <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{status}</p>}
+            {status && (
+              <p className={`rounded-2xl p-3 text-sm font-semibold ${status.startsWith("Password reset email sent") ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
+                {status}
+              </p>
+            )}
 
             <Button className="mt-2 w-full" type="submit" disabled={!canSubmit || busy}>
               {busy ? "Working..." : mode === "register" ? "Create account" : "Sign in"}
             </Button>
+            {mode === "login" && (
+              <button
+                className="min-h-10 text-sm font-black text-vault-muted underline transition active:scale-[0.98]"
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={!isFirebaseConfigured || resetBusy || busy}
+              >
+                {resetBusy ? "Sending reset email..." : "Forgot password?"}
+              </button>
+            )}
           </form>
         </Card>
       </div>
     </main>
   );
+}
+
+function formatPasswordResetError(error) {
+  const message = error?.message || "Vault could not send a password reset email. Please try again.";
+  if (message.includes("invalid-email")) return "Enter a valid email address first.";
+  if (message.includes("user-not-found")) return "No Vault account was found for that email.";
+  return message.replace("Firebase: ", "");
 }
