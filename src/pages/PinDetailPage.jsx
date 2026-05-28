@@ -471,12 +471,13 @@ export function PinDetailPage({ data, updateData, userId }) {
               {isExpanded && (
                 <div className="grid gap-3 border-t border-rose-100/70 p-4 pt-3">
                   <div className="flex items-start gap-3">
-                <input
+                <DraftTextInput
                   list="vault-household-items"
                   className="min-h-12 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 font-bold outline-none focus:border-vault-rose"
                   value={item.name === "New item" ? "" : item.name}
                   placeholder="Item name"
-                  onChange={(event) => updateItem(item.id, { name: event.target.value })}
+                  autoCapitalize="words"
+                  onCommit={(name) => updateItem(item.id, { name })}
                 />
                 <button className="grid size-12 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => deleteItem(item.id)} aria-label="Delete item">
                   <Trash2 size={18} />
@@ -484,25 +485,29 @@ export function PinDetailPage({ data, updateData, userId }) {
               </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                <input
+                <DraftTextInput
                   className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
                   value={item.quantity || ""}
                   placeholder="Quantity"
-                  onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
+                  inputMode="text"
+                  autoCapitalize="none"
+                  onCommit={(quantity) => updateItem(item.id, { quantity })}
                 />
-                <input
+                <DraftTextInput
                   className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-sm outline-none focus:border-vault-rose"
                   value={item.estimatedValue || ""}
                   placeholder="Est. value"
-                  onChange={(event) => updateItem(item.id, { estimatedValue: event.target.value })}
+                  inputMode="decimal"
+                  autoCapitalize="none"
+                  onCommit={(estimatedValue) => updateItem(item.id, { estimatedValue })}
                 />
               </div>
 
-                  <textarea
+                  <DraftTextarea
                 className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
                 value={item.notes || ""}
                 placeholder="Notes"
-                onChange={(event) => updateItem(item.id, { notes: event.target.value })}
+                onCommit={(notes) => updateItem(item.id, { notes })}
               />
 
                 </div>
@@ -578,11 +583,12 @@ export function PinDetailPage({ data, updateData, userId }) {
             <div className="grid gap-2">
               {suggestedItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-2">
-                  <input
+                  <DraftTextInput
                     className="min-h-11 min-w-0 flex-1 rounded-2xl border border-rose-100 bg-white px-4 text-sm font-semibold outline-none focus:border-vault-rose"
                     value={item.name}
                     placeholder="Suggested item"
-                    onChange={(event) => updateSuggestedItem(item.id, { name: event.target.value })}
+                    autoCapitalize="words"
+                    onCommit={(name) => updateSuggestedItem(item.id, { name })}
                   />
                   <button className="grid size-11 place-items-center rounded-2xl bg-red-50 text-red-700" onClick={() => deleteSuggestedItem(item.id)} aria-label="Delete suggestion">
                     <Trash2 size={16} />
@@ -646,6 +652,84 @@ function FloatingDragCard({ preview, children }) {
     >
       {children}
     </div>
+  );
+}
+
+function DraftTextInput({ value, onCommit, autoCapitalize = "sentences", onKeyDown, ...props }) {
+  const [draft, setDraft] = useState(value || "");
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(value || "");
+  }, [focused, value]);
+
+  function commit() {
+    const nextValue = draft;
+    if (nextValue !== (value || "")) onCommit(nextValue);
+  }
+
+  return (
+    <input
+      {...props}
+      value={draft}
+      autoComplete="on"
+      autoCorrect="on"
+      autoCapitalize={autoCapitalize}
+      spellCheck={true}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={(event) => {
+        commit();
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          commit();
+          event.currentTarget.blur();
+        }
+        onKeyDown?.(event);
+      }}
+    />
+  );
+}
+
+function DraftTextarea({ value, onCommit, onKeyDown, ...props }) {
+  const [draft, setDraft] = useState(value || "");
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(value || "");
+  }, [focused, value]);
+
+  function commit() {
+    const nextValue = draft;
+    if (nextValue !== (value || "")) onCommit(nextValue);
+  }
+
+  return (
+    <textarea
+      {...props}
+      value={draft}
+      autoComplete="on"
+      autoCorrect="on"
+      autoCapitalize="sentences"
+      spellCheck={true}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={(event) => {
+        commit();
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      onKeyDown={onKeyDown}
+    />
   );
 }
 

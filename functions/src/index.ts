@@ -892,6 +892,7 @@ async function callOpenAI(imageDataUrl: string, photoWidth?: number, photoHeight
               {
                 type: "input_image",
                 image_url: imageDataUrl,
+                detail: "high",
               },
             ],
           },
@@ -980,7 +981,10 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "If a cabinet, drawer, box, or container is closed, label the storage area only and leave visibleItems empty unless items are actually visible.",
     "If a cabinet, drawer, bin, shelf, or container is open and items are visible, suggest concise likely item names.",
     "When books are visible, first perform OCR-style reading of every visible book spine and cover before naming items.",
+    "For bookshelves or stacks of books, scan each visible spine or cover in order from left-to-right and top-to-bottom, and do not stop after the first few readable titles.",
+    "If several readable books are in one storage area, include every readable title as its own visibleItems entry instead of collapsing the books into a topic.",
     "For readable books, put the exact printed title words in visibleItems as separate item names. Do not replace readable titles with topics or categories.",
+    "Prefer exact printed text on labels, covers, and spines over semantic object recognition.",
     "Never invent, infer, autocomplete, translate, or summarize book titles from the topic, cover art, author, color, or surrounding context.",
     "If a book topic is recognizable but the title words are not clearly readable, use unreadable book as the item name and mention the likely topic only in notes.",
     "If only part of a title is clearly readable, include only the exact readable words followed by partial title. Do not fill in missing words.",
@@ -1067,7 +1071,7 @@ const analysisSchema = {
           visibleItems: {
             type: "array",
             description:
-              "Concise visible item names. If books are visible, include each clearly readable exact printed book title as a separate item. Do not invent titles or use topic/category labels as titles; use unreadable book when the printed title cannot be read.",
+              "Concise visible item names. Prefer exact text printed on visible labels, covers, and book spines. If books are visible, include each clearly readable exact printed book title as a separate item. Do not invent titles or use topic/category labels as titles; use unreadable book when the printed title cannot be read.",
             items: {
               type: "string",
             },

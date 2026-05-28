@@ -309,6 +309,10 @@ export function LocationPage({ data, updateData, userId }) {
               value={roomName}
               placeholder="Home office, Bedroom, Garage..."
               autoFocus
+              autoComplete="on"
+              autoCorrect="on"
+              autoCapitalize="words"
+              spellCheck={true}
               onChange={(event) => setRoomName(event.target.value)}
             />
             <Button className="w-full" type="submit" disabled={!roomName.trim()}>

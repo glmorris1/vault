@@ -25,6 +25,10 @@ export function EditableText({ value, onSave, className = "", inputClassName = "
           value={draft}
           placeholder={placeholder}
           autoFocus
+          autoComplete="on"
+          autoCorrect="on"
+          autoCapitalize="words"
+          spellCheck={true}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={save}
           onKeyDown={(event) => {

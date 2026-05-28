@@ -53,6 +53,10 @@ export function Dashboard({ data, updateData }) {
           className="min-w-0 flex-1 bg-transparent text-base font-medium outline-none placeholder:text-vault-muted"
           value={query}
           placeholder="Search items, pins, photos, notes..."
+          autoComplete="on"
+          autoCorrect="on"
+          autoCapitalize="none"
+          spellCheck={true}
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
@@ -71,6 +75,10 @@ export function Dashboard({ data, updateData }) {
               value={locationName}
               placeholder="Home, Office, Storage..."
               autoFocus
+              autoComplete="on"
+              autoCorrect="on"
+              autoCapitalize="words"
+              spellCheck={true}
               onChange={(event) => setLocationName(event.target.value)}
             />
             <Button className="w-full" type="submit" disabled={!locationName.trim()}>

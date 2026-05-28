@@ -1,6 +1,6 @@
 import { Info, Sparkles, Trash2, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
@@ -518,6 +518,18 @@ export function ImageDetailPage({ data, updateData }) {
 function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }) {
   const labelInputRef = useRef(null);
   const visibleItemsText = suggestion.visibleItems.join(", ");
+  const [visibleItemsDraft, setVisibleItemsDraft] = useState(visibleItemsText);
+  const [visibleItemsFocused, setVisibleItemsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!visibleItemsFocused) setVisibleItemsDraft(visibleItemsText);
+  }, [visibleItemsFocused, visibleItemsText]);
+
+  function commitVisibleItems() {
+    if (visibleItemsDraft !== visibleItemsText) {
+      onChange({ visibleItems: splitItems(visibleItemsDraft) });
+    }
+  }
 
   return (
     <Card className={`grid gap-3 p-4 ${selected ? "ring-2 ring-vault-blue/40" : ""}`}>
@@ -541,6 +553,10 @@ function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }
           className="min-h-11 rounded-2xl border border-rose-100 bg-white px-4 font-semibold outline-none focus:border-vault-rose"
           value={suggestion.label}
           placeholder="Storage area label"
+          autoComplete="on"
+          autoCorrect="on"
+          autoCapitalize="words"
+          spellCheck={true}
           onChange={(event) => onChange({ label: event.target.value })}
         />
       </label>
@@ -605,9 +621,24 @@ function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }
         <span className="text-sm font-bold text-vault-muted">Visible items</span>
         <input
           className="min-h-11 rounded-2xl border border-rose-100 bg-white px-4 text-sm outline-none focus:border-vault-rose"
-          value={visibleItemsText}
+          value={visibleItemsDraft}
           placeholder="plates, bowls, batteries"
-          onChange={(event) => onChange({ visibleItems: splitItems(event.target.value) })}
+          autoComplete="on"
+          autoCorrect="on"
+          autoCapitalize="words"
+          spellCheck={true}
+          onFocus={() => setVisibleItemsFocused(true)}
+          onChange={(event) => setVisibleItemsDraft(event.target.value)}
+          onBlur={() => {
+            commitVisibleItems();
+            setVisibleItemsFocused(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              commitVisibleItems();
+              event.currentTarget.blur();
+            }
+          }}
         />
       </label>
 
@@ -617,6 +648,10 @@ function SuggestionEditor({ suggestion, selected, onToggle, onChange, onDelete }
           className="min-h-20 rounded-2xl border border-rose-100 bg-white px-3 py-3 text-sm outline-none focus:border-vault-rose"
           value={suggestion.notes}
           placeholder="Only include what is visible."
+          autoComplete="on"
+          autoCorrect="on"
+          autoCapitalize="sentences"
+          spellCheck={true}
           onChange={(event) => onChange({ notes: event.target.value })}
         />
       </label>
