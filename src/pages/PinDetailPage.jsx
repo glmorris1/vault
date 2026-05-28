@@ -413,7 +413,7 @@ export function PinDetailPage({ data, updateData, userId }) {
   const visibleItems = pin.items;
 
   return (
-    <div className="grid gap-5 pb-8">
+    <div className="grid gap-5 pb-28">
       <datalist id="vault-household-items">
         {HOUSEHOLD_ITEM_SUGGESTIONS.map((name) => (
           <option key={name} value={name} />
@@ -651,6 +651,12 @@ export function PinDetailPage({ data, updateData, userId }) {
           <span className="min-w-0 flex-1 truncate text-base font-black">{itemDragPreview.label}</span>
         </FloatingDragCard>
       )}
+      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 mx-auto w-full max-w-md px-5 pb-[env(safe-area-inset-bottom)]">
+        <Button className="pointer-events-auto w-full shadow-2xl ring-4 ring-white/80" variant="pin" onClick={addItem}>
+          <Plus size={20} />
+          Add item
+        </Button>
+      </div>
     </div>
   );
 }
