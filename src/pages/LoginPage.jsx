@@ -1,4 +1,4 @@
-import { Fingerprint, Lock, Mail, UserRound } from "lucide-react";
+import { Eye, EyeOff, Fingerprint, Lock, Mail, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
@@ -24,6 +24,7 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState(() => rememberedEmail);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberLogin, setRememberLogin] = useState(true);
   const [useBiometrics, setUseBiometrics] = useState(() => savedLoginRequiresBiometric());
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
@@ -194,7 +195,20 @@ export function LoginPage() {
               <span className="text-sm font-bold text-vault-muted">Password</span>
               <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-rose-100 bg-white px-4 focus-within:border-vault-rose">
                 <Lock size={18} className="text-vault-muted" />
-                <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                <input
+                  className="min-w-0 flex-1 bg-transparent font-semibold outline-none"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                <button
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-vault-muted transition active:scale-95"
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </label>
 

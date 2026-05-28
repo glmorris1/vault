@@ -1,4 +1,4 @@
-import { Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/Button.jsx";
@@ -14,6 +14,7 @@ export function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -102,10 +103,18 @@ export function ResetPasswordPage() {
                       <Lock size={18} className="text-vault-muted" />
                       <input
                         className="min-w-0 flex-1 bg-transparent font-semibold outline-none"
-                        type="password"
+                        type={showPasswords ? "text" : "password"}
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                       />
+                      <button
+                        className="grid size-9 shrink-0 place-items-center rounded-full text-vault-muted transition active:scale-95"
+                        type="button"
+                        aria-label={showPasswords ? "Hide password" : "Show password"}
+                        onClick={() => setShowPasswords((current) => !current)}
+                      >
+                        {showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </label>
 
@@ -115,10 +124,18 @@ export function ResetPasswordPage() {
                       <Lock size={18} className="text-vault-muted" />
                       <input
                         className="min-w-0 flex-1 bg-transparent font-semibold outline-none"
-                        type="password"
+                        type={showPasswords ? "text" : "password"}
                         value={confirmPassword}
                         onChange={(event) => setConfirmPassword(event.target.value)}
                       />
+                      <button
+                        className="grid size-9 shrink-0 place-items-center rounded-full text-vault-muted transition active:scale-95"
+                        type="button"
+                        aria-label={showPasswords ? "Hide password" : "Show password"}
+                        onClick={() => setShowPasswords((current) => !current)}
+                      >
+                        {showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </label>
                 </>

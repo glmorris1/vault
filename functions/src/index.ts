@@ -979,10 +979,11 @@ function buildPrompt(photoWidth?: number, photoHeight?: number) {
     "Do not guess hidden contents.",
     "If a cabinet, drawer, box, or container is closed, label the storage area only and leave visibleItems empty unless items are actually visible.",
     "If a cabinet, drawer, bin, shelf, or container is open and items are visible, suggest concise likely item names.",
-    "If books are visible, list a book title only when the exact title words are clearly readable on the spine or cover.",
-    "Never invent, infer, autocomplete, or summarize book titles from the topic, cover art, author, color, or surrounding context.",
-    "If a book topic is recognizable but the title is not clearly readable, use a generic item such as anatomy book, cookbook, textbook, or unreadable book instead of a made-up title.",
-    "If only part of a title is clearly readable, include only the exact readable words and add partial title. Do not fill in missing words.",
+    "When books are visible, first perform OCR-style reading of every visible book spine and cover before naming items.",
+    "For readable books, put the exact printed title words in visibleItems as separate item names. Do not replace readable titles with topics or categories.",
+    "Never invent, infer, autocomplete, translate, or summarize book titles from the topic, cover art, author, color, or surrounding context.",
+    "If a book topic is recognizable but the title words are not clearly readable, use unreadable book as the item name and mention the likely topic only in notes.",
+    "If only part of a title is clearly readable, include only the exact readable words followed by partial title. Do not fill in missing words.",
   ].join(" ");
 }
 
@@ -1066,7 +1067,7 @@ const analysisSchema = {
           visibleItems: {
             type: "array",
             description:
-              "Concise visible item names. If books are visible, include each clearly readable exact book title as a separate item. Do not invent book titles; use generic topic labels when titles are not readable.",
+              "Concise visible item names. If books are visible, include each clearly readable exact printed book title as a separate item. Do not invent titles or use topic/category labels as titles; use unreadable book when the printed title cannot be read.",
             items: {
               type: "string",
             },
