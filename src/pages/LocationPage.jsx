@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -264,6 +264,32 @@ export function LocationPage({ data, updateData, userId }) {
     }));
   }
 
+  function moveImage(imageId, roomId, direction) {
+    updateLocation((current) => {
+      const moveInList = (images = []) => {
+        const nextImages = [...images];
+        const from = nextImages.findIndex((image) => image.id === imageId);
+        if (from < 0) return images;
+        const to = direction === "up" ? from - 1 : from + 1;
+        if (to < 0 || to >= nextImages.length) return images;
+        const [image] = nextImages.splice(from, 1);
+        nextImages.splice(to, 0, image);
+        return nextImages;
+      };
+
+      if (!roomId) {
+        return { ...current, images: moveInList(current.images || []) };
+      }
+
+      return {
+        ...current,
+        rooms: (current.rooms || []).map((room) =>
+          room.id === roomId ? { ...room, images: moveInList(room.images || []) } : room,
+        ),
+      };
+    });
+  }
+
   function deleteImage() {
     updateLocation((current) => ({
       ...current,
@@ -361,6 +387,7 @@ export function LocationPage({ data, updateData, userId }) {
                   setDeleteImageRoomId(room.id);
                   setDeleteImageId(imageId);
                 }}
+                onMoveImage={(imageId, direction) => moveImage(imageId, room.id, direction)}
                 onOpenImage={() => saveLastRoomState(location.id, room.id)}
               />
             ))}
@@ -371,6 +398,11 @@ export function LocationPage({ data, updateData, userId }) {
                 locationId={location.id}
                 expanded
                 legacy
+                onDeleteImage={(imageId) => {
+                  setDeleteImageRoomId("");
+                  setDeleteImageId(imageId);
+                }}
+                onMoveImage={(imageId, direction) => moveImage(imageId, "", direction)}
               />
             )}
           </>
@@ -419,6 +451,8 @@ function RoomSection({
   onDeleteRoom,
   onUpload,
   onOpenImage,
+  onDeleteImage,
+  onMoveImage,
   dragProps,
 }) {
   return (
@@ -476,7 +510,7 @@ function RoomSection({
             </EmptyState>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {(room.images || []).map((image) => (
+              {(room.images || []).map((image, index, images) => (
                 <Card key={image.id} className="overflow-hidden p-0">
                   <Link to={`/locations/${locationId}/images/${image.id}`} className="block" onClick={onOpenImage}>
                     <div className="aspect-[4/3] bg-pink-50">
@@ -489,6 +523,34 @@ function RoomSection({
                     </p>
                     <p className="mt-1 text-xs font-medium text-vault-muted">{image.pins.length} pin{image.pins.length === 1 ? "" : "s"}</p>
                   </Link>
+                  <div className="grid grid-cols-3 gap-1 border-t border-rose-100/70 p-2">
+                    <button
+                      type="button"
+                      className="grid min-h-10 place-items-center rounded-xl bg-pink-50 text-vault-muted disabled:opacity-35"
+                      onClick={() => onMoveImage?.(image.id, "up")}
+                      disabled={index === 0}
+                      aria-label={`Move ${image.name || "photo"} up`}
+                    >
+                      <ArrowUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid min-h-10 place-items-center rounded-xl bg-pink-50 text-vault-muted disabled:opacity-35"
+                      onClick={() => onMoveImage?.(image.id, "down")}
+                      disabled={index === images.length - 1}
+                      aria-label={`Move ${image.name || "photo"} down`}
+                    >
+                      <ArrowDown size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid min-h-10 place-items-center rounded-xl bg-red-50 text-red-700"
+                      onClick={() => onDeleteImage?.(image.id)}
+                      aria-label={`Delete ${image.name || "photo"}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </Card>
               ))}
             </div>

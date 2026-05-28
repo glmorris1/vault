@@ -1,4 +1,4 @@
-import { Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
@@ -310,6 +310,19 @@ export function PinDetailPage({ data, updateData, userId }) {
     }));
   }
 
+  function movePhoto(photoId, direction) {
+    updatePin((current) => {
+      const photos = [...(current.photos || [])];
+      const from = photos.findIndex((photo) => photo.id === photoId);
+      if (from < 0) return current;
+      const to = direction === "up" ? from - 1 : from + 1;
+      if (to < 0 || to >= photos.length) return current;
+      const [photo] = photos.splice(from, 1);
+      photos.splice(to, 0, photo);
+      return { ...current, photos };
+    });
+  }
+
   function deletePhoto() {
     updatePin((current) => ({
       ...current,
@@ -537,7 +550,7 @@ export function PinDetailPage({ data, updateData, userId }) {
           <EmptyState icon="camera" title="No detail photos yet">Take a close-up photo of what is inside this storage spot.</EmptyState>
         ) : (
           <div className="grid gap-3">
-            {(pin.photos || []).map((photo) => (
+            {(pin.photos || []).map((photo, index, photos) => (
               <Card key={photo.id} className="overflow-hidden p-0">
                 <div className="aspect-[4/3] bg-pink-50">
                   <img className="h-full w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.name || "Detail photo"} />
@@ -552,6 +565,14 @@ export function PinDetailPage({ data, updateData, userId }) {
                     onSave={(name) => renamePhoto(photo.id, name)}
                   />
                   <div className="grid grid-cols-2 gap-2">
+                    <Button className="min-h-11 rounded-xl px-3 text-sm" variant="soft" onClick={() => movePhoto(photo.id, "up")} disabled={index === 0}>
+                      <ArrowUp size={16} />
+                      Up
+                    </Button>
+                    <Button className="min-h-11 rounded-xl px-3 text-sm" variant="soft" onClick={() => movePhoto(photo.id, "down")} disabled={index === photos.length - 1}>
+                      <ArrowDown size={16} />
+                      Down
+                    </Button>
                     <Button className="min-h-11 rounded-xl px-3 text-sm" variant="secondary" onClick={() => requestAISuggestions(photo)} disabled={aiLoading}>
                       <Sparkles size={16} />
                       {aiLoading && aiPhotoId === photo.id ? "Analyzing..." : "Use AI"}

@@ -11,7 +11,7 @@ import { findImage } from "../data/search.js";
 import { analyzePhotoWithAI } from "../services/firebase.js";
 
 const SUGGESTION_TYPES = ["cabinet", "drawer", "shelf", "bin", "box", "appliance", "closet", "countertop", "other"];
-const IMAGE_TIPS = ["Tap anywhere on the image to add a marker pin.", "Press and hold a pin to drag it to a new location."];
+const IMAGE_TIPS = ["Tap anywhere on the image to add a marker pin.", "Drag a pin to move it if the spot needs adjusting."];
 
 export function ImageDetailPage({ data, updateData }) {
   const { locationId, imageId } = useParams();
@@ -132,29 +132,22 @@ export function ImageDetailPage({ data, updateData }) {
     const target = event.currentTarget;
     const pointerId = event.pointerId;
     target.setPointerCapture?.(pointerId);
-    const timer = window.setTimeout(() => {
-      draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false };
-      const pin = image.pins.find((item) => item.id === pinId);
-      document.body.classList.add("is-reordering");
-      setDraggingPinId(pinId);
-      setDraggingPinLabel(pin?.name?.trim() || "Unnamed");
-    }, 350);
-    draggingPinRef.current = { id: pinId, startX, startY, active: false, moved: false, timer, target, pointerId };
+    const pin = image.pins.find((item) => item.id === pinId);
+    draggingPinRef.current = { id: pinId, startX, startY, active: true, moved: false, target, pointerId };
+    document.body.classList.add("is-reordering");
+    setDraggingPinId(pinId);
+    setDraggingPinLabel(pin?.name?.trim() || "Unnamed");
   }
 
   function dragPin(event, pinId) {
     const drag = draggingPinRef.current;
     if (!drag || drag.id !== pinId) return;
-    if (!drag.active) {
-      if (Math.abs(event.clientX - drag.startX) > 8 || Math.abs(event.clientY - drag.startY) > 8) {
-        window.clearTimeout(drag.timer);
-        draggingPinRef.current = null;
-      }
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
-    drag.moved = true;
+    if (Math.abs(event.clientX - drag.startX) > 4 || Math.abs(event.clientY - drag.startY) > 4) {
+      drag.moved = true;
+    }
+    if (!drag.moved) return;
     const position = pointerPositionToPercent(event);
     if (position) updatePinPosition(pinId, position);
   }
@@ -162,9 +155,8 @@ export function ImageDetailPage({ data, updateData }) {
   function endPinPress(event, pinId) {
     const drag = draggingPinRef.current;
     if (!drag || drag.id !== pinId) return;
-    window.clearTimeout(drag.timer);
     drag.target?.releasePointerCapture?.(drag.pointerId);
-    if (drag.active) {
+    if (drag.moved) {
       event.preventDefault();
       event.stopPropagation();
       suppressPinClickRef.current = true;
@@ -173,6 +165,8 @@ export function ImageDetailPage({ data, updateData }) {
       window.setTimeout(() => {
         suppressPinClickRef.current = false;
       }, 0);
+    } else {
+      navigate(`/locations/${location.id}/images/${image.id}/pins/${pinId}`);
     }
     document.body.classList.remove("is-reordering");
     draggingPinRef.current = null;
