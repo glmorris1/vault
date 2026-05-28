@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "build:native": "vite build && node scripts/prepare-native-dist.mjs && capacitor-assets generate --ios",
+    "build:native": "vite build && node scripts/prepare-native-dist.mjs && capacitor-assets generate --ios && capacitor-assets generate --android",
+    "open:android": "cap open android",
+    "sync:android": "npm run build:native && cap sync android",
     "sync:ios": "npm run build:native && cap sync ios",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
