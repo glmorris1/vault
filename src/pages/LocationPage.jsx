@@ -8,6 +8,7 @@ import { EmptyState } from "../components/EmptyState.jsx";
 import { createId, readImageFile } from "../data/storage.js";
 import { findLocation } from "../data/search.js";
 import { isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
+import { isNativeApp, promptForNativePhoto } from "../services/nativeBridge.js";
 
 const PHOTO_UPLOAD_TIMEOUT = 45000;
 const LAST_ROOM_STORAGE_KEY = "vault-last-expanded-room";
@@ -61,19 +62,31 @@ export function LocationPage({ data, updateData, userId }) {
     event.target.value = "";
     if (files.length === 0) return;
 
+    const imageSources = [];
+    for (const file of files) {
+      imageSources.push({
+        dataUrl: await readImageFile(file),
+        name: "",
+      });
+    }
+
+    await saveLocationImages(imageSources, uploadRoomId);
+  }
+
+  async function saveLocationImages(imageSources, roomId) {
+    if (imageSources.length === 0) return;
     setUploading(true);
     setUploadError("");
     const newImages = [];
     try {
-      for (const file of files) {
+      for (const source of imageSources) {
         const imageId = createId("img");
-        const compressedDataUrl = await readImageFile(file);
-        let photoDataUrl = compressedDataUrl;
+        let photoDataUrl = source.dataUrl;
         let storagePath = "";
 
         if (userId && isFirebaseConfigured) {
           const uploaded = await withTimeout(
-            uploadPhotoForUser(userId, imageId, compressedDataUrl),
+            uploadPhotoForUser(userId, imageId, source.dataUrl),
             PHOTO_UPLOAD_TIMEOUT,
             "Photo upload timed out. Check Firebase Storage rules and try again.",
           );
@@ -83,7 +96,7 @@ export function LocationPage({ data, updateData, userId }) {
 
         newImages.push({
           id: imageId,
-          name: "",
+          name: source.name || "",
           photoDataUrl,
           storagePath,
           pins: [],
@@ -91,16 +104,16 @@ export function LocationPage({ data, updateData, userId }) {
       }
 
       updateLocation((current) => {
-        if (!uploadRoomId) return { ...current, images: [...newImages, ...(current.images || [])] };
+        if (!roomId) return { ...current, images: [...newImages, ...(current.images || [])] };
         return {
           ...current,
           rooms: (current.rooms || []).map((room) =>
-            room.id === uploadRoomId ? { ...room, images: [...newImages, ...(room.images || [])] } : room,
+            room.id === roomId ? { ...room, images: [...newImages, ...(room.images || [])] } : room,
           ),
         };
       });
       if (newImages.length === 1) {
-        if (uploadRoomId) saveLastRoomState(location.id, uploadRoomId);
+        if (roomId) saveLastRoomState(location.id, roomId);
         navigate(`/locations/${location.id}/images/${newImages[0].id}`);
       }
     } catch (error) {
@@ -137,7 +150,26 @@ export function LocationPage({ data, updateData, userId }) {
 
   function uploadToRoom(roomId) {
     setUploadRoomId(roomId);
+    if (isNativeApp()) {
+      void uploadNativePhotoToRoom(roomId);
+      return;
+    }
     fileInputRef.current?.click();
+  }
+
+  async function uploadNativePhotoToRoom(roomId) {
+    setUploadError("");
+    try {
+      const dataUrl = await promptForNativePhoto();
+      if (!dataUrl) {
+        setUploadRoomId("");
+        return;
+      }
+      await saveLocationImages([{ dataUrl, name: "" }], roomId);
+    } catch (error) {
+      if (error?.message) setUploadError(error.message);
+      setUploadRoomId("");
+    }
   }
 
   function reorderRoom(roomId, targetIndex) {

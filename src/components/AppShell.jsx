@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { isNativeApp, openNativeBrowser, shareNative } from "../services/nativeBridge.js";
 import { createShareUrl } from "../services/shareLinks.js";
 
 
@@ -65,11 +66,20 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       return;
     }
     const url = await createShareUrl(locations);
+    const shareTitle = "Vault shared locations";
+    const shareText = locations.length === 1 ? `Shared location: ${locations[0].name}` : `Shared ${locations.length} Vault locations`;
     try {
-      if (window.navigator.share) {
+      if (isNativeApp()) {
+        await shareNative({
+          title: shareTitle,
+          text: shareText,
+          url,
+        });
+        setShareStatus("Share link sent.");
+      } else if (window.navigator.share) {
         await window.navigator.share({
-          title: "Vault shared locations",
-          text: locations.length === 1 ? `Shared location: ${locations[0].name}` : `Shared ${locations.length} Vault locations`,
+          title: shareTitle,
+          text: shareText,
           url,
         });
       } else {
@@ -84,8 +94,15 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
 
   function openAlexaLinking() {
     setAlexaStatus("Opening Alexa. If it does not open, use the steps below.");
+    copyTextToClipboard(ALEXA_LINKING_STEPS).catch(() => {});
     window.location.href = ALEXA_SKILL_APP_URL;
     window.setTimeout(() => {
+      if (isNativeApp()) {
+        openNativeBrowser(ALEXA_SKILL_WEB_URL).catch(() => {
+          window.location.href = ALEXA_SKILL_WEB_URL;
+        });
+        return;
+      }
       window.location.href = ALEXA_SKILL_WEB_URL;
     }, 900);
   }

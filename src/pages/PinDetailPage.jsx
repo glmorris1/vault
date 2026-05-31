@@ -10,6 +10,7 @@ import { HOUSEHOLD_ITEM_SUGGESTIONS } from "../data/householdItems.js";
 import { createId, readImageFile } from "../data/storage.js";
 import { findPin } from "../data/search.js";
 import { analyzePhotoWithAI, isFirebaseConfigured, uploadPhotoForUser } from "../services/firebase.js";
+import { isNativeApp, promptForNativePhoto } from "../services/nativeBridge.js";
 
 const PHOTO_UPLOAD_TIMEOUT = 45000;
 const NEW_ITEM_SCROLL_OFFSET = 118;
@@ -267,19 +268,31 @@ export function PinDetailPage({ data, updateData, userId }) {
     event.target.value = "";
     if (files.length === 0) return;
 
+    const photoSources = [];
+    for (const file of files) {
+      photoSources.push({
+        dataUrl: await readImageFile(file),
+        name: "",
+      });
+    }
+
+    await savePinPhotos(photoSources);
+  }
+
+  async function savePinPhotos(photoSources) {
+    if (photoSources.length === 0) return;
     setUploadingPhoto(true);
     setPhotoUploadError("");
     const newPhotos = [];
     try {
-      for (const file of files) {
+      for (const source of photoSources) {
         const photoId = createId("pinphoto");
-        const compressedDataUrl = await readImageFile(file);
-        let photoDataUrl = compressedDataUrl;
+        let photoDataUrl = source.dataUrl;
         let storagePath = "";
 
         if (userId && isFirebaseConfigured) {
           const uploaded = await withTimeout(
-            uploadPhotoForUser(userId, photoId, compressedDataUrl),
+            uploadPhotoForUser(userId, photoId, source.dataUrl),
             PHOTO_UPLOAD_TIMEOUT,
             "Photo upload timed out. Check Firebase Storage rules and try again.",
           );
@@ -289,7 +302,7 @@ export function PinDetailPage({ data, updateData, userId }) {
 
         newPhotos.push({
           id: photoId,
-          name: "",
+          name: source.name || "",
           photoDataUrl,
           storagePath,
         });
@@ -300,6 +313,21 @@ export function PinDetailPage({ data, updateData, userId }) {
       setPhotoUploadError(formatUploadError(error));
     } finally {
       setUploadingPhoto(false);
+    }
+  }
+
+  async function openDetailPhotoPicker() {
+    if (!isNativeApp()) {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    setPhotoUploadError("");
+    try {
+      const dataUrl = await promptForNativePhoto();
+      if (dataUrl) await savePinPhotos([{ dataUrl, name: "" }]);
+    } catch (error) {
+      if (error?.message) setPhotoUploadError(error.message);
     }
   }
 
@@ -537,7 +565,7 @@ export function PinDetailPage({ data, updateData, userId }) {
             <h2 className="text-xl font-black">Detail photos</h2>
             <p className="text-sm text-vault-muted">Add an open drawer, cabinet, or shelf photo.</p>
           </div>
-          <Button variant="pin" onClick={() => fileInputRef.current?.click()}>
+          <Button variant="pin" onClick={openDetailPhotoPicker}>
             <Camera size={19} />
             Add
           </Button>
