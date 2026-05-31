@@ -7,13 +7,25 @@ export function isNativeApp() {
   return Boolean(Capacitor?.isNativePlatform?.());
 }
 
-export async function promptForNativePhoto() {
+export function getNativePlatform() {
+  return Capacitor?.getPlatform?.() || "web";
+}
+
+export function isAndroidApp() {
+  return getNativePlatform() === "android";
+}
+
+export function isIosApp() {
+  return getNativePlatform() === "ios";
+}
+
+async function getNativePhoto(source) {
   if (!isNativeApp()) return "";
 
   const photo = await Camera.getPhoto({
     quality: 85,
     resultType: CameraResultType.DataUrl,
-    source: CameraSource.Prompt,
+    source,
     allowEditing: false,
     correctOrientation: true,
     promptLabelHeader: "Add photo",
@@ -24,11 +36,26 @@ export async function promptForNativePhoto() {
   return photo?.dataUrl || "";
 }
 
+export async function promptForNativePhoto(options = {}) {
+  const source = options.source || (isAndroidApp() ? CameraSource.Camera : CameraSource.Prompt);
+  return getNativePhoto(source);
+}
+
+export async function takeNativePhoto() {
+  return getNativePhoto(CameraSource.Camera);
+}
+
+export async function chooseNativePhoto() {
+  return getNativePhoto(CameraSource.Photos);
+}
+
 export async function shareNative({ title, text, url }) {
   if (!isNativeApp()) return false;
+  const shareText = url && text && !text.includes(url) ? `${text}\n${url}` : text;
+
   await Share.share({
     title,
-    text,
+    text: shareText,
     url,
     dialogTitle: "Share Vault locations",
   });

@@ -8,6 +8,10 @@ import "./styles.css";
 
 const routerBaseName = Capacitor.isNativePlatform() ? "/" : import.meta.env.BASE_URL;
 
+if (Capacitor.isNativePlatform()) {
+  document.documentElement.dataset.nativePlatform = Capacitor.getPlatform();
+}
+
 function routeNativeLink(url) {
   try {
     const parsedUrl = new URL(url);
