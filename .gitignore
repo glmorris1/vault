@@ -9,4 +9,3 @@ functions/.env.*
 firebase-debug.log
 firebase-debug.*.log
 *.local
-android/app/google-services.json

@@ -1,7 +1,6 @@
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { isAndroidApp, isNativeApp, openNativeBrowser, shareNative } from "../services/nativeBridge.js";
 import { createShareUrl } from "../services/shareLinks.js";
 
 
@@ -17,7 +16,6 @@ const ALEXA_SKILL_ID = "amzn1.ask.skill.2bec6e97-f50b-4a9b-b008-8578ab03f8f8";
 const ALEXA_LINKING_STEPS = "Open the Alexa app, go to Skills, choose Vault, then Settings, Link Account.";
 const ALEXA_SKILL_WEB_URL = `https://alexa.amazon.com/spa/index.html#skills/dp/${ALEXA_SKILL_ID}`;
 const ALEXA_SKILL_APP_URL = `alexa://skills/dp/${ALEXA_SKILL_ID}`;
-const ALEXA_SKILL_ANDROID_INTENT_URL = `intent://skills/dp/${ALEXA_SKILL_ID}#Intent;scheme=alexa;package=com.amazon.dee.app;end`;
 
 export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
   const navigate = useNavigate();
@@ -67,20 +65,11 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       return;
     }
     const url = await createShareUrl(locations);
-    const shareTitle = "Vault shared locations";
-    const shareText = locations.length === 1 ? `Shared location: ${locations[0].name}` : `Shared ${locations.length} Vault locations`;
     try {
-      if (isNativeApp()) {
-        await shareNative({
-          title: shareTitle,
-          text: shareText,
-          url,
-        });
-        setShareStatus("Share sheet opened. Choose Messages, Gmail, or another app to send the link.");
-      } else if (window.navigator.share) {
+      if (window.navigator.share) {
         await window.navigator.share({
-          title: shareTitle,
-          text: shareText,
+          title: "Vault shared locations",
+          text: locations.length === 1 ? `Shared location: ${locations[0].name}` : `Shared ${locations.length} Vault locations`,
           url,
         });
       } else {
@@ -95,15 +84,8 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
 
   function openAlexaLinking() {
     setAlexaStatus("Opening Alexa. If it does not open, use the steps below.");
-    copyTextToClipboard(ALEXA_LINKING_STEPS).catch(() => {});
-    window.location.href = isAndroidApp() ? ALEXA_SKILL_ANDROID_INTENT_URL : ALEXA_SKILL_APP_URL;
+    window.location.href = ALEXA_SKILL_APP_URL;
     window.setTimeout(() => {
-      if (isNativeApp()) {
-        openNativeBrowser(ALEXA_SKILL_WEB_URL).catch(() => {
-          window.location.href = ALEXA_SKILL_WEB_URL;
-        });
-        return;
-      }
       window.location.href = ALEXA_SKILL_WEB_URL;
     }, 900);
   }

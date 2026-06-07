@@ -62,17 +62,6 @@ const HOUSEHOLD_ITEM_ALIASES: Record<string, string[]> = {
   "trash bags": ["trash bag", "garbage bags", "garbage bag"],
   "zip ties": ["zip tie", "cable ties", "cable tie"],
 };
-const HOUSEHOLD_PERSON_ALIASES: Record<string, string[]> = {
-  mom: ["mother", "mama"],
-  dad: ["father", "daddy"],
-  gary: [],
-  lindsey: ["lindsay", "linds"],
-  grandma: ["grandmother"],
-  grandpa: ["grandfather"],
-  husband: [],
-  wife: [],
-  kids: ["children"],
-};
 
 export const analyzePhotoWithAI = onCall(
   {
@@ -228,16 +217,6 @@ export const alexaVaultSkill = onRequest(
       const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
       const requestType = body?.request?.type || "";
       const intentName = body?.request?.intent?.name || "";
-      logger.info("Alexa Vault request received", {
-        method: request.method,
-        requestType,
-        intentName,
-        itemSlot: getEnvelopeSlotValue(body, "item"),
-        querySlot: getEnvelopeSlotValue(body, "query"),
-        personSlot: getEnvelopeSlotValue(body, "person"),
-        pinSlot: getEnvelopeSlotValue(body, "pin"),
-        hasLinkedUser: Boolean(body?.context?.System?.user?.accessToken || body?.session?.user?.accessToken),
-      });
       if (request.method !== "POST") {
         response.status(200).send("Vault Alexa endpoint is ready.");
         return;
@@ -268,30 +247,19 @@ export const alexaVaultSkill = onRequest(
         }
 
         if (["FindItemIntent", "SearchVaultIntent"].includes(intentName)) {
-          const itemSearch = getAlexaItemSearch(body);
-          if (!itemSearch.query) {
+          const query = getEnvelopeSlotValue(body, "item") || getEnvelopeSlotValue(body, "query");
+          if (!query) {
             response.status(200).json(alexaSpeak("What item would you like me to find in Vault?", "Say something like, where are the scissors?", false));
             return;
           }
 
-          const matches = await searchUserVault(uid, itemSearch.query, itemSearch.person);
-          logger.info("Alexa Vault item search completed", {
-            intentName,
-            slots: getEnvelopeSlotDebugValues(body),
-            itemSlot: getEnvelopeSlotValue(body, "item"),
-            personSlot: getEnvelopeSlotValue(body, "person"),
-            querySlot: getEnvelopeSlotValue(body, "query"),
-            query: itemSearch.query,
-            label: itemSearch.label,
-            person: itemSearch.person,
-            matchCount: matches.length,
-          });
+          const matches = await searchUserVault(uid, query);
           if (matches.length === 0) {
-            response.status(200).json(alexaSpeak(`I could not find ${itemSearch.label} in your Vault yet.`, "You can ask me to find another item.", false));
+            response.status(200).json(alexaSpeak(`I could not find ${query} in your Vault yet.`, "You can ask me to find another item.", false));
             return;
           }
 
-          response.status(200).json(alexaSpeak(describeVaultItemMatches(matches, itemSearch.label)));
+          response.status(200).json(alexaSpeak(describeVaultItemMatches(matches)));
           return;
         }
 
@@ -418,194 +386,6 @@ function alexaSpeak(text: string, reprompt = "", shouldEndSession = true) {
 function getEnvelopeSlotValue(envelope: any, slotName: string) {
   const value = envelope?.request?.intent?.slots?.[slotName]?.value;
   return typeof value === "string" ? value.trim() : "";
-}
-
-function getEnvelopeSlotDebugValues(envelope: any) {
-  const slots = envelope?.request?.intent?.slots || {};
-  return Object.fromEntries(
-    Object.entries(slots).map(([slotName, slot]) => [
-      slotName,
-      typeof (slot as any)?.value === "string" ? (slot as any).value : "",
-    ]),
-  );
-}
-
-function getEnvelopeSlotValues(envelope: any) {
-  const slots = envelope?.request?.intent?.slots || {};
-  return Object.values(slots)
-    .map((slot) => (typeof (slot as any)?.value === "string" ? (slot as any).value.trim() : ""))
-    .filter(Boolean);
-}
-
-function getAlexaItemSearch(envelope: any) {
-  const itemSlot = getEnvelopeSlotValue(envelope, "item");
-  const personSlot = getEnvelopeSlotValue(envelope, "person");
-  const querySlot = getEnvelopeSlotValue(envelope, "query");
-  const allSlotText = getEnvelopeSlotValues(envelope).join(" ");
-  const joinedSlotText = [personSlot, itemSlot].filter(Boolean).join(" ");
-  const phraseCandidates = uniqueNonEmptyStrings([querySlot, itemSlot, allSlotText, joinedSlotText]);
-  const person = getAlexaPersonQuery(envelope, phraseCandidates, personSlot);
-  const query =
-    getAlexaQueryForPerson(uniqueNonEmptyStrings([querySlot, itemSlot, allSlotText]), person) ||
-    (person && itemSlot ? cleanAlexaItemQuery(itemSlot, person) : "") ||
-    getAlexaQueryForPerson(uniqueNonEmptyStrings([joinedSlotText]), person) ||
-    cleanAlexaItemQuery(querySlot || itemSlot || allSlotText || joinedSlotText, person);
-
-  return {
-    query,
-    person: normalizeHouseholdPerson(person),
-    label: formatAlexaItemLabel(query, person, query),
-  };
-}
-
-function getAlexaPersonQuery(envelope: any, phraseCandidates: string[], personSlot = "") {
-  const slotValues = getEnvelopeSlotValues(envelope).filter((value) => value !== personSlot);
-  const candidates = uniqueNonEmptyStrings([...phraseCandidates, ...slotValues]);
-  for (const candidate of candidates) {
-    const possessivePerson = readPossessiveQueryParts(candidate).person;
-    if (possessivePerson) return normalizeHouseholdPerson(possessivePerson) || possessivePerson;
-
-    const knownPerson = readKnownPersonAtStart(candidate).person;
-    if (knownPerson) return knownPerson;
-  }
-
-  if (personSlot) return normalizeHouseholdPerson(personSlot) || personSlot.trim();
-
-  return "";
-}
-
-function getAlexaQueryForPerson(candidates: string[], person: string) {
-  for (const candidate of candidates) {
-    const cleaned = cleanAlexaItemQuery(candidate, person);
-    if (cleaned && !isOnlyHouseholdPersonName(cleaned)) return cleaned;
-  }
-  return "";
-}
-
-function uniqueNonEmptyStrings(values: string[]) {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => String(value || "").replace(/\s+/g, " ").trim())
-        .filter(Boolean),
-    ),
-  );
-}
-
-function isOnlyHouseholdPersonName(value: string) {
-  const normalized = normalizeSearch(value);
-  return householdPersonTerms().some(([person, terms]) => {
-    return person === normalized || terms.some((term) => normalizeSearch(term) === normalized);
-  });
-}
-
-function formatAlexaItemLabel(rawQuery: string, person: string, cleanedQuery: string) {
-  const cleanedRaw = stripAlexaSearchPrefix(rawQuery);
-
-  if (person && cleanedQuery) {
-    return `${toTitleCase(person)}'s ${cleanedQuery}`;
-  }
-
-  return cleanedRaw || cleanedQuery || "that item";
-}
-
-function cleanAlexaItemQuery(value: string, person = "") {
-  let query = stripAlexaSearchPrefix(value);
-  if (!query) return "";
-
-  const knownPersonParts = readKnownPersonAtStart(query);
-  if (knownPersonParts.person && knownPersonParts.item) {
-    query = knownPersonParts.item;
-  } else {
-    const normalizedPerson = normalizeSearch(person);
-    if (normalizedPerson) {
-      for (const term of householdPersonSearchTerms(normalizedPerson)) {
-        const personPattern = escapeRegExp(term).replace(/\s+/g, "\\s+");
-        query = query.replace(new RegExp(`^${personPattern}(?:\\s*['\\u2019]\\s*s|s)?\\s+`, "i"), "");
-      }
-    }
-  }
-
-  const possessiveParts = readPossessiveQueryParts(query);
-  if (possessiveParts.person && possessiveParts.item) {
-    query = possessiveParts.item;
-  }
-
-  return query
-    .replace(/^(?:my|the|his|her|their|our)\s+/i, "")
-    .replace(/\s+(?:are|is|go|goes|belong|belongs)$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function stripAlexaSearchPrefix(value: string) {
-  return stripAlexaInvocationPrefix(value)
-    .replace(/^(?:tell\s+me\s+where\s+|where\s+(?:are|is|does|do)\s+|where\s+|find\s+|look\s+for\s+|search\s+for\s+)/i, "")
-    .replace(/\s+in\s+vault$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function stripAlexaInvocationPrefix(value: string) {
-  return String(value || "")
-    .replace(/^\s*(?:alexa\s*,?\s*)?(?:ask|tell)\s+vault(?:\s+to)?\s+/i, "")
-    .replace(/^\s*(?:alexa\s*,?\s*)?open\s+vault(?:\s+and)?\s*/i, "")
-    .replace(/^\s*in\s+vault\s+/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function readPossessiveQueryParts(value: string) {
-  const query = cleanTrailingAlexaQueryWords(stripAlexaSearchPrefix(value));
-  const possessiveMatch = query.match(/^([a-z][a-z\s.'\u2019-]{1,40})(?:['\u2019]\s*s|s)\s+(.+)$/i);
-  if (!possessiveMatch) return { person: "", item: query };
-  return {
-    person: normalizeHouseholdPerson(possessiveMatch[1].trim()) || possessiveMatch[1].trim(),
-    item: cleanTrailingAlexaQueryWords(possessiveMatch[2].trim()),
-  };
-}
-
-function readKnownPersonAtStart(value: string) {
-  const query = stripAlexaSearchPrefix(value);
-  for (const [person, terms] of householdPersonTerms()) {
-    for (const term of terms) {
-      const personPattern = escapeRegExp(term).replace(/\s+/g, "\\s+");
-      const match = query.match(new RegExp(`^${personPattern}(?:\\s*['\\u2019]\\s*s|s)?\\s+(.+)$`, "i"));
-      if (match?.[1]) {
-        return { person, item: cleanTrailingAlexaQueryWords(match[1]) };
-      }
-    }
-  }
-  return { person: "", item: query };
-}
-
-function normalizeHouseholdPerson(value: string) {
-  const normalizedValue = normalizeSearch(value).replace(/\s+s$/, "");
-  for (const [person, terms] of householdPersonTerms()) {
-    if (terms.some((term) => normalizeSearch(term) === normalizedValue)) {
-      return person;
-    }
-  }
-  return normalizedValue;
-}
-
-function householdPersonTerms() {
-  return Object.entries(HOUSEHOLD_PERSON_ALIASES)
-    .map(([person, aliases]) => [person, [person, ...aliases].sort((a, b) => b.length - a.length)] as const)
-    .sort(([a], [b]) => b.length - a.length);
-}
-
-function householdPersonSearchTerms(normalizedPerson: string) {
-  const canonicalPerson = normalizeHouseholdPerson(normalizedPerson);
-  const aliases = HOUSEHOLD_PERSON_ALIASES[canonicalPerson] || [];
-  return [canonicalPerson, ...aliases.map(normalizeSearch), normalizedPerson].filter(Boolean);
-}
-
-function cleanTrailingAlexaQueryWords(value: string) {
-  return value
-    .replace(/\s+(?:are|is|go|goes|belong|belongs)$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function resolveAlexaVaultUserFromEnvelope(envelope: any) {
@@ -855,21 +635,11 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 
-
-async function searchUserVault(uid: string, query: string, person = "") {
+async function searchUserVault(uid: string, query: string) {
   const locations = await loadVaultLocations(uid);
-  const normalizedQuery = normalizeSearch(cleanAlexaItemQuery(query));
-  if (!normalizedQuery) return [];
-
-  const normalizedPerson = normalizeSearch(normalizeHouseholdPerson(person));
-  const personTerms = normalizedPerson
-    ? Array.from(new Set(householdPersonSearchTerms(normalizedPerson).map(normalizeSearch).filter(Boolean)))
-    : [];
+  const normalizedQuery = normalizeSearch(query);
   const results: Array<{ name: string; path: string[]; score: number }> = [];
 
   for (const location of locations) {
@@ -877,18 +647,11 @@ async function searchUserVault(uid: string, query: string, person = "") {
       for (const pin of image.pins || []) {
         for (const item of pin.items || []) {
           const text = normalizeSearch([item.name, item.notes, item.quantity, item.estimatedValue, pin.name, image.name, room?.name, location.name].join(" "));
-          const personText = normalizeSearch([item.name, item.notes, pin.name, image.name, room?.name, location.name].join(" "));
-          if (normalizedPerson && isTaggedForDifferentPerson(personText, normalizedPerson)) {
-            continue;
-          }
-          if (personTerms.length > 0 && !personTerms.some((term) => normalizedTextContainsPhrase(personText, term))) {
-            continue;
-          }
           if (searchTextMatches(text, normalizedQuery)) {
             results.push({
               name: item.name || pin.name || "Item",
               path: compactPath(location.name, room?.name, image.name, pin.name),
-              score: scoreMatch(item.name, normalizedQuery) + (personTerms.length > 0 ? 1000 : 0),
+              score: scoreMatch(item.name, normalizedQuery),
             });
           }
         }
@@ -897,33 +660,6 @@ async function searchUserVault(uid: string, query: string, person = "") {
   }
 
   return results.sort((a, b) => b.score - a.score || a.path.join(" ").localeCompare(b.path.join(" "))).slice(0, 5);
-}
-
-function isTaggedForDifferentPerson(normalizedText: string, normalizedRequestedPerson: string) {
-  if (!normalizedText || !normalizedRequestedPerson) return false;
-  const requestedTerms = new Set(householdPersonSearchTerms(normalizedRequestedPerson).map(normalizeSearch).filter(Boolean));
-
-  for (const [person, terms] of householdPersonTerms()) {
-    if (person === normalizedRequestedPerson || terms.some((term) => requestedTerms.has(normalizeSearch(term)))) {
-      continue;
-    }
-
-    for (const term of terms) {
-      const normalizedTerm = normalizeSearch(term);
-      if (normalizedTerm && normalizedTextContainsPhrase(normalizedText, normalizedTerm)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function normalizedTextContainsPhrase(normalizedText: string, normalizedPhrase: string) {
-  const phrase = normalizeSearch(normalizedPhrase);
-  if (!normalizedText || !phrase) return false;
-  const phrasePattern = escapeRegExp(phrase).replace(/\s+/g, "\\s+");
-  return new RegExp(`(?:^|\\s)${phrasePattern}(?:\\s|$)`, "i").test(normalizedText);
 }
 
 async function searchPinsInUserVault(uid: string, query: string) {
@@ -971,14 +707,13 @@ function speakPath(path: string[]) {
   return path.join(", ");
 }
 
-function describeVaultItemMatches(matches: Array<{ name: string; path: string[] }>, requestedItem = "") {
+function describeVaultItemMatches(matches: Array<{ name: string; path: string[] }>) {
   if (matches.length === 1) {
     const match = matches[0];
-    const itemName = requestedItem || match.name;
-    return `${itemName} is in ${speakPath(match.path)}.`;
+    return `${match.name} is in ${speakPath(match.path)}.`;
   }
 
-  const itemName = requestedItem || matches[0].name;
+  const itemName = matches[0].name;
   const locations = matches.slice(0, 3).map((match) => speakPath(match.path));
   const placeCount = numberForSpeech(matches.length);
   const placeLabel = matches.length === 1 ? "place" : "places";
@@ -1053,14 +788,6 @@ function pluralize(value: string) {
   if (value.endsWith("y")) return `${value.slice(0, -1)}ies`;
   if (value.endsWith("s")) return value;
   return `${value}s`;
-}
-
-function toTitleCase(value: string) {
-  return value
-    .trim()
-    .split(/\s+/)
-    .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : "")
-    .join(" ");
 }
 
 async function saveAIAnalysis(uid: string, record: Record<string, unknown>) {

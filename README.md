@@ -21,24 +21,6 @@ Vault uses Firebase for cross-device accounts and cloud storage:
 
 Create a Firebase web app, enable Email/Password sign-in, create a Firestore database, and enable Storage. Copy `.env.example` to `.env.local` and fill in the Firebase web app values before running locally or deploying.
 
-## Android native setup
-
-Vault's Android package id is `com.glmorris1.vault` and uses the existing Firebase project, `vault-4e944`.
-
-1. In the existing Firebase project, open Project settings > Your apps.
-2. Add an Android app with package name `com.glmorris1.vault`.
-3. Download the generated `google-services.json`.
-4. Place it at `android/app/google-services.json`. Do not commit that real file.
-5. Run `npm run sync:android`, then open the project with `npm run open:android`.
-
-Android App Links are configured for:
-
-- `https://glmorris1.github.io/vault/...`
-- `https://vault-4e944.firebaseapp.com/...`
-- `https://vault-4e944.web.app/...`
-
-For verified App Links, the matching `assetlinks.json` must be served from each host's `/.well-known/assetlinks.json` path with the release signing certificate fingerprint.
-
 ## Prototype features
 
 - Dashboard with location cards and instant search
