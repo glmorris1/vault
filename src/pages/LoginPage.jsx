@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Fingerprint, Lock, Mail, UserRound } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ScanFace, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
@@ -228,7 +228,7 @@ export function LoginPage() {
                     if (event.target.checked) setRememberLogin(true);
                   }}
                 />
-                <Fingerprint size={18} />
+                <ScanFace size={18} />
                 Use Face ID next time
               </label>
               {!biometricsAvailable && <p className="px-1 text-xs font-semibold leading-5 text-vault-muted">Face ID unlock appears when this device supports secure biometric sign-in.</p>}
@@ -241,7 +241,7 @@ export function LoginPage() {
                 onClick={handleSavedLogin}
                 disabled={busy}
               >
-                <Fingerprint size={18} />
+                <ScanFace size={18} />
                 {savedLoginRequiresBiometric() ? "Sign in with Face ID" : "Sign in with saved password"}
               </button>
             )}
