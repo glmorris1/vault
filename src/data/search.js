@@ -1,5 +1,18 @@
 function includes(value, query) {
-  return String(value || "").toLowerCase().includes(query);
+  const text = normalizeSearchText(value);
+  return text.spaced.includes(query.spaced) || text.compact.includes(query.compact);
+}
+
+function normalizeSearchText(value) {
+  const base = String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return {
+    compact: base.replace(/[^a-z0-9]/g, ""),
+    spaced: base.replace(/[^a-z0-9]+/g, " ").trim(),
+  };
 }
 
 function itemLabel(item, pin, image, location) {
@@ -18,8 +31,8 @@ function pinLabel(pin) {
 }
 
 export function searchVault(data, rawQuery) {
-  const query = rawQuery.trim().toLowerCase();
-  if (!query) return [];
+  const query = normalizeSearchText(rawQuery);
+  if (!query.compact) return [];
 
   const results = [];
 
