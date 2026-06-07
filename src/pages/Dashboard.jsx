@@ -1,6 +1,6 @@
-import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
@@ -11,10 +11,15 @@ import { searchVault } from "../data/search.js";
 
 export function Dashboard({ data, updateData }) {
   const navigate = useNavigate();
+  const locationDragRef = useRef(null);
+  const locationRowRefs = useRef({});
+  const suppressLocationClickRef = useRef(false);
   const [query, setQuery] = useState("");
   const [deleteId, setDeleteId] = useState(null);
   const [addingLocation, setAddingLocation] = useState(false);
   const [locationName, setLocationName] = useState("");
+  const [draggingLocationId, setDraggingLocationId] = useState("");
+  const [locationDragPreview, setLocationDragPreview] = useState(null);
   const results = useMemo(() => searchVault(data, query), [data, query]);
   const deleteLocationTarget = data.locations.find((location) => location.id === deleteId);
   const deleteSummary = deleteLocationTarget ? summarizeLocation(deleteLocationTarget) : null;
@@ -43,6 +48,121 @@ export function Dashboard({ data, updateData }) {
       locations: current.locations.filter((location) => location.id !== deleteId),
     }));
     setDeleteId(null);
+  }
+
+  function openLocation(locationId) {
+    if (suppressLocationClickRef.current) return;
+    navigate(`/locations/${locationId}`);
+  }
+
+  function reorderLocation(locationId, targetIndex) {
+    updateData((current) => {
+      const locations = [...current.locations];
+      const from = locations.findIndex((location) => location.id === locationId);
+      if (from < 0) return current;
+      const boundedTarget = Math.max(0, Math.min(locations.length - 1, targetIndex));
+      if (from === boundedTarget) return current;
+      const [location] = locations.splice(from, 1);
+      locations.splice(boundedTarget, 0, location);
+      return { ...current, locations };
+    });
+  }
+
+  function startLocationPress(event, locationId) {
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    target.setPointerCapture?.(pointerId);
+    const timer = window.setTimeout(() => {
+      const rect = target.getBoundingClientRect();
+      const currentLocations = data.locations || [];
+      const fromIndex = currentLocations.findIndex((location) => location.id === locationId);
+      const location = currentLocations[fromIndex];
+      const dropRects = currentLocations
+        .filter((item) => item.id !== locationId)
+        .map((item) => {
+          const rowRect = locationRowRefs.current[item.id]?.getBoundingClientRect();
+          return rowRect
+            ? {
+                id: item.id,
+                top: rowRect.top + window.scrollY,
+                bottom: rowRect.bottom + window.scrollY,
+                center: rowRect.top + window.scrollY + rowRect.height / 2,
+              }
+            : null;
+        })
+        .filter(Boolean);
+      locationDragRef.current = {
+        id: locationId,
+        startX,
+        startY,
+        active: true,
+        moved: false,
+        target,
+        pointerId,
+        fromIndex,
+        dropIndex: fromIndex,
+        dropRects,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
+      document.body.classList.add("is-reordering");
+      setDraggingLocationId(locationId);
+      setLocationDragPreview({
+        id: locationId,
+        label: location?.name || "Location",
+        width: rect.width,
+        height: rect.height,
+        x: event.clientX - (event.clientX - rect.left),
+        y: event.clientY - (event.clientY - rect.top),
+      });
+      suppressLocationClickRef.current = true;
+    }, 350);
+    locationDragRef.current = { id: locationId, startX, startY, active: false, moved: false, timer, target, pointerId };
+  }
+
+  function dragLocation(event, locationId) {
+    const drag = locationDragRef.current;
+    if (!drag || drag.id !== locationId) return;
+    if (!drag.active) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    drag.moved = true;
+    const nextDropIndex = getDropIndexFromRects(drag.dropRects || [], event.clientY + window.scrollY);
+    drag.dropIndex = nextDropIndex;
+    setLocationDragPreview((current) =>
+      current
+        ? {
+            ...current,
+            x: event.clientX - drag.offsetX,
+            y: event.clientY - drag.offsetY,
+          }
+        : current,
+    );
+  }
+
+  function endLocationPress(event, locationId) {
+    const drag = locationDragRef.current;
+    if (!drag || drag.id !== locationId) return;
+    window.clearTimeout(drag.timer);
+    drag.target?.releasePointerCapture?.(drag.pointerId);
+    if (drag.active) {
+      event.preventDefault();
+      reorderLocation(locationId, drag.dropIndex ?? drag.fromIndex ?? 0);
+      suppressLocationClickRef.current = true;
+      window.setTimeout(() => {
+        suppressLocationClickRef.current = false;
+      }, 0);
+    }
+    document.body.classList.remove("is-reordering");
+    locationDragRef.current = null;
+    setDraggingLocationId("");
+    setLocationDragPreview(null);
   }
 
   return (
@@ -119,12 +239,15 @@ export function Dashboard({ data, updateData }) {
             data.locations.map((location) => (
               <Card
                 key={location.id}
-                className="cursor-pointer overflow-hidden p-0 transition active:scale-[0.99]"
-                onClick={() => navigate(`/locations/${location.id}`)}
+                className={`cursor-pointer overflow-hidden p-0 transition active:scale-[0.99] ${draggingLocationId === location.id ? "opacity-35 ring-2 ring-vault-blue/30" : ""}`}
+                ref={(node) => {
+                  if (node) locationRowRefs.current[location.id] = node;
+                }}
+                onClick={() => openLocation(location.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    navigate(`/locations/${location.id}`);
+                    openLocation(location.id);
                   }
                 }}
                 role="button"
@@ -132,10 +255,19 @@ export function Dashboard({ data, updateData }) {
                 aria-label={`Open ${location.name}`}
               >
                 <div className="min-h-20">
-                  <div className="flex items-center justify-between gap-4 p-5">
+                  <div
+                    className="drag-reorder-row flex items-center justify-between gap-4 p-5"
+                    onPointerDown={(event) => startLocationPress(event, location.id)}
+                    onPointerMove={(event) => dragLocation(event, location.id)}
+                    onPointerUp={(event) => endLocationPress(event, location.id)}
+                    onPointerCancel={(event) => endLocationPress(event, location.id)}
+                    onContextMenu={(event) => event.preventDefault()}
+                    onSelectStart={(event) => event.preventDefault()}
+                  >
                     <DashboardLocationTitle location={location} onRename={renameLocation} />
                     <button
                       className="grid size-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-700 transition active:scale-95"
+                      onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => {
                         event.stopPropagation();
                         setDeleteId(location.id);
@@ -173,6 +305,14 @@ export function Dashboard({ data, updateData }) {
         onCancel={() => setDeleteId(null)}
         onConfirm={deleteLocation}
       />
+      {locationDragPreview && (
+        <FloatingDragCard preview={locationDragPreview}>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink">
+            <ChevronRight size={19} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-3xl font-black">{locationDragPreview.label}</span>
+        </FloatingDragCard>
+      )}
     </div>
   );
 }
@@ -203,6 +343,11 @@ function summarizeLocation(location) {
     pins: pins.length,
     items: items.length,
   };
+}
+
+function getDropIndexFromRects(rects, pointerY) {
+  const targetIndex = rects.findIndex((rect) => pointerY < rect.center);
+  return targetIndex === -1 ? rects.length : targetIndex;
 }
 
 function DashboardLocationTitle({ location, onRename }) {
@@ -242,6 +387,7 @@ function DashboardLocationTitle({ location, onRename }) {
       <span className="truncate text-3xl font-black leading-tight">{location.name}</span>
       <button
         className="grid size-9 shrink-0 place-items-center rounded-full bg-pink-50 text-vault-muted transition active:scale-95"
+        onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation();
           setDraft(location.name);
@@ -251,6 +397,22 @@ function DashboardLocationTitle({ location, onRename }) {
       >
         <Pencil size={15} />
       </button>
+    </div>
+  );
+}
+
+function FloatingDragCard({ preview, children }) {
+  return (
+    <div
+      className="drag-reorder-row pointer-events-none fixed z-[80] flex items-center gap-3 rounded-[1.75rem] border border-white/90 bg-white/95 px-4 text-left text-vault-ink shadow-2xl ring-2 ring-vault-blue/25 backdrop-blur"
+      style={{
+        left: `${preview.x}px`,
+        top: `${preview.y}px`,
+        width: `${preview.width}px`,
+        minHeight: `${preview.height}px`,
+      }}
+    >
+      {children}
     </div>
   );
 }
