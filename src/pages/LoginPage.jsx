@@ -16,7 +16,7 @@ import {
 } from "../services/authPreferences.js";
 import { isFirebaseConfigured, loginUser, registerUser, sendVaultPasswordReset } from "../services/firebase.js";
 
-const vaultLogo = "./vault-icon.png";
+const vaultLogo = "./vault-icon.svg";
 
 export function LoginPage() {
   const rememberedEmail = getRememberedEmail();

@@ -5,7 +5,7 @@ import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { getPasswordResetEmail, isFirebaseConfigured, resetVaultPassword } from "../services/firebase.js";
 
-const vaultLogo = "./vault-icon.png";
+const vaultLogo = "./vault-icon.svg";
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
