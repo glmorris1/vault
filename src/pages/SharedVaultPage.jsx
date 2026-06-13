@@ -70,7 +70,7 @@ export function SharedVaultPage() {
     <main className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 py-8 sm:px-6">
       <header className="mb-6 text-center">
         <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
-          <img className="size-16 object-cover" src={vaultLogo} alt="" />
+          <img className="size-16 scale-[1.7] object-cover" src={vaultLogo} alt="" />
         </div>
         <h1 className="gold-4 text-4xl font-black">Vault</h1>
         <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Shared Locations</p>
