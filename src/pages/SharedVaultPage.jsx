@@ -4,7 +4,8 @@ import { Card } from "../components/Card.jsx";
 import { createId } from "../data/storage.js";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
 import { readSharePayload } from "../services/shareLinks.js";
-import vaultLogo from "../assets/vault-watermark.svg";
+
+const vaultLogo = "./vault-icon.png";
 
 export function SharedVaultPage() {
   const [payload, setPayload] = useState(null);
@@ -68,8 +69,8 @@ export function SharedVaultPage() {
   return (
     <main className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 py-8 sm:px-6">
       <header className="mb-6 text-center">
-        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-[1.75rem] bg-white shadow-soft">
-          <img className="size-12 object-contain" src={vaultLogo} alt="" />
+        <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
+          <img className="size-16 object-cover" src={vaultLogo} alt="" />
         </div>
         <h1 className="gold-4 text-4xl font-black">Vault</h1>
         <p className="mt-1 text-sm font-black tracking-[0.18em] text-vault-ink">Shared Locations</p>
