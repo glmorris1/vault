@@ -5,7 +5,7 @@ import { createId } from "../data/storage.js";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
 import { readSharePayload } from "../services/shareLinks.js";
 
-const vaultLogo = "./vault-icon.svg";
+const vaultLogo = "./vault-icon.png";
 
 export function SharedVaultPage() {
   const [payload, setPayload] = useState(null);

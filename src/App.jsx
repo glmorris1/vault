@@ -17,7 +17,7 @@ import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
 
-const vaultLogo = "./vault-icon.svg";
+const vaultLogo = "./vault-icon.png";
 
 const THEME_STORAGE_KEY = "vault-theme";
 
