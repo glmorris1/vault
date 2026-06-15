@@ -1,9 +1,9 @@
 import { CheckCircle, Home, LogIn, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card.jsx";
-import { createId } from "../data/storage.js";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
-import { readSharePayload } from "../services/shareLinks.js";
+import { cleanSharedText, cloneSharedLocations, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -14,6 +14,7 @@ export function SharedVaultPage() {
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
@@ -34,30 +35,45 @@ export function SharedVaultPage() {
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
-    return subscribeToAuth((nextUser) => {
+    const authFallback = window.setTimeout(() => {
+      setAuthReady(true);
+    }, 1500);
+    const unsubscribe = subscribeToAuth((nextUser) => {
+      window.clearTimeout(authFallback);
       setUser(nextUser);
       setAuthReady(true);
     });
+    return () => {
+      window.clearTimeout(authFallback);
+      unsubscribe?.();
+    };
   }, []);
 
   const locations = payload?.locations || [];
 
   async function addLocationsToVault() {
+    if (locations.length === 0 || !payload) return;
     if (!user) {
-      setSaveStatus("Sign in to Vault on this device, then reopen this link to add these locations.");
+      const savedForLogin = savePendingSharePayload(payload);
+      if (!savedForLogin) {
+        setSaveStatus("Vault could not keep this shared location for sign in. Try opening the link in the Vault app or share fewer photos.");
+        return;
+      }
+      setSaveStatus("Opening Vault sign in...");
+      navigate("/login");
       return;
     }
-    if (locations.length === 0) return;
     setSaving(true);
     setSaveStatus("");
     try {
       const current = await loadExistingVault(user.uid);
-      const importedLocations = locations.map(cloneSharedLocation);
+      const importedLocations = cloneSharedLocations(locations);
       await saveVaultToCloud(user.uid, {
         ...current,
         locations: [...(current.locations || []), ...importedLocations],
       });
       setSaveStatus(importedLocations.length === 1 ? "Added this location to your Vault." : `Added ${importedLocations.length} locations to your Vault.`);
+      navigate("/", { replace: true });
     } catch (error) {
       console.error("Could not add shared locations to Vault", error);
       setSaveStatus("Vault could not add these locations. Please check your connection and try again.");
@@ -96,18 +112,13 @@ export function SharedVaultPage() {
               <div className="min-w-0 flex-1">
                 <h2 className="text-xl font-black text-vault-ink">Add to your Vault</h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">
-                  Save these shared locations into your own account so they show up with the rest of your Vault.
+                  Save these shared locations into your own account. If you need to sign in first, Vault will add them automatically after login.
                 </p>
                 {!authReady && <p className="mt-2 text-sm font-semibold text-vault-muted">Checking your login...</p>}
-                {authReady && !user && (
-                  <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">
-                    Sign in to Vault on this device, then reopen this share link to save it.
-                  </p>
-                )}
                 {saveStatus && <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{saveStatus}</p>}
                 <button
                   className="mt-4 inline-flex min-h-12 items-center justify-center rounded-2xl bg-vault-blue px-5 text-sm font-black text-white shadow-soft transition disabled:cursor-not-allowed disabled:bg-vault-muted/45 active:scale-[0.98]"
-                  disabled={!authReady || !user || saving}
+                  disabled={saving}
                   onClick={addLocationsToVault}
                   type="button"
                 >
@@ -123,56 +134,6 @@ export function SharedVaultPage() {
       )}
     </main>
   );
-}
-
-function cloneSharedLocation(location) {
-  return {
-    ...location,
-    id: createId("location"),
-    rooms: (location.rooms || []).map(cloneSharedRoom),
-    images: (location.images || []).map(cloneSharedImage),
-  };
-}
-
-function cloneSharedRoom(room) {
-  return {
-    ...room,
-    id: createId("room"),
-    images: (room.images || []).map(cloneSharedImage),
-  };
-}
-
-function cloneSharedImage(image) {
-  return {
-    ...image,
-    id: createId("image"),
-    pins: (image.pins || []).map(cloneSharedPin),
-  };
-}
-
-function cloneSharedPin(pin) {
-  return {
-    ...pin,
-    id: createId("pin"),
-    name: pin.name || pin.label || "",
-    notes: pin.notes || pin.note || "",
-    xPercent: clampPercent(pin.xPercent),
-    yPercent: clampPercent(pin.yPercent),
-    photos: (pin.photos || []).map((photo) => ({ ...photo, id: createId("pinphoto") })),
-    items: (pin.items || []).map((item) => ({
-      ...item,
-      id: createId("item"),
-      notes: item.notes || item.note || "",
-      quantity: item.quantity || "",
-      estimatedValue: item.estimatedValue || "",
-    })),
-  };
-}
-
-function clampPercent(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 50;
-  return Math.max(0, Math.min(100, number));
 }
 
 function SharedLocation({ location }) {
@@ -240,21 +201,25 @@ function SharedImage({ image }) {
 }
 
 function SharedPin({ pin }) {
-  const items = pin.items || [];
-  const photos = pin.photos || [];
+  const items = cleanSharedItems(pin.items || []);
+  const photos = (pin.photos || []).map((photo) => ({
+    ...photo,
+    items: cleanSharedItems(photo.items || []),
+  }));
+  const pinNotes = cleanSharedText(pin.notes || pin.note);
   return (
     <div className="rounded-xl border border-rose-100 p-3">
       <div className="flex items-start gap-2">
         <MapPin className="mt-0.5 shrink-0 text-vault-muted" size={16} />
         <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-black text-vault-ink">{pin.name || pin.label || "Pin"}</p>
-          {(pin.notes || pin.note) && <p className="mt-1 break-words text-xs font-semibold leading-5 text-vault-muted">{pin.notes || pin.note}</p>}
+          <p className="break-words text-sm font-black text-vault-ink">{cleanSharedText(pin.name || pin.label) || "Pin"}</p>
+          {pinNotes && <p className="mt-1 break-words text-xs font-semibold leading-5 text-vault-muted">{pinNotes}</p>}
           {items.length > 0 && (
             <ul className="mt-2 grid gap-1">
               {items.map((item) => (
                 <li key={item.id || item.name} className="break-words text-sm font-semibold text-vault-muted">
                   {item.name}
-                  {item.notes || item.note ? `: ${item.notes || item.note}` : ""}
+                  {item.notes ? `: ${item.notes}` : ""}
                 </li>
               ))}
             </ul>
@@ -264,6 +229,16 @@ function SharedPin({ pin }) {
               {photos.map((photo) => (
                 <div key={photo.id || photo.name} className="overflow-hidden rounded-xl bg-vault-pink/50">
                   <img className="h-auto max-h-56 w-full object-cover" src={photo.photoDataUrl} alt={photo.name || pin.name || pin.label || "Shared detail photo"} />
+                  {(photo.items || []).length > 0 && (
+                    <ul className="grid gap-1 p-3">
+                      {(photo.items || []).map((item) => (
+                        <li key={item.id || item.name} className="break-words text-sm font-semibold text-vault-muted">
+                          {item.name}
+                          {item.notes ? `: ${item.notes}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>
@@ -272,4 +247,14 @@ function SharedPin({ pin }) {
       </div>
     </div>
   );
+}
+
+function cleanSharedItems(items) {
+  return items
+    .map((item) => ({
+      ...item,
+      name: cleanSharedText(item.name),
+      notes: cleanSharedText(item.notes || item.note),
+    }))
+    .filter((item) => item.name || item.notes);
 }
