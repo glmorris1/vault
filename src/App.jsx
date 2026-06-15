@@ -16,6 +16,7 @@ import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnbo
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
+import { clearPendingSharePayload, cloneSharedLocations, getPendingSharePayload } from "./services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -33,6 +34,7 @@ export default function App() {
   const routerLocation = useLocation();
   const saveTimerRef = useRef(null);
   const lastCloudJsonRef = useRef("");
+  const pendingShareImportRef = useRef(false);
 
   useEffect(() => saveVault(data), [data]);
 
@@ -98,6 +100,24 @@ export default function App() {
     }, 500);
     return () => window.clearTimeout(saveTimerRef.current);
   }, [data, user, vaultReady]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      pendingShareImportRef.current = false;
+      return;
+    }
+    if (!vaultReady || pendingShareImportRef.current) return;
+    const pendingPayload = getPendingSharePayload();
+    if (!pendingPayload?.locations?.length) return;
+
+    pendingShareImportRef.current = true;
+    const importedLocations = cloneSharedLocations(pendingPayload.locations);
+    setData((current) => ({
+      ...current,
+      locations: [...(current.locations || []), ...importedLocations],
+    }));
+    clearPendingSharePayload();
+  }, [user?.uid, vaultReady]);
 
   function updateData(updater) {
     setData((current) => (typeof updater === "function" ? updater(current) : updater));
