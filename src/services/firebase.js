@@ -21,7 +21,7 @@ import {
 } from "firebase/auth";
 import { deleteDoc, doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getDownloadURL, getStorage, ref, uploadString } from "firebase/storage";
+import { deleteObject, getDownloadURL, getStorage, listAll, ref, uploadString } from "firebase/storage";
 import { createStarterData } from "../data/storage.js";
 
 export const AI_FREE_USE_LIMIT = 100;
@@ -163,7 +163,7 @@ export async function logoutUser() {
 }
 
 export async function deleteCurrentAccount(password) {
-  const { auth, db } = getServices();
+  const { auth, db, storage } = getServices();
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("No signed-in Vault account was found.");
   if (!currentUser.email) throw new Error("This account cannot be deleted from the app because it does not have an email login.");
@@ -179,6 +179,7 @@ export async function deleteCurrentAccount(password) {
   await Promise.allSettled([
     deleteDoc(doc(db, "vaults", userId)),
     deleteDoc(doc(db, "users", userId)),
+    deleteStorageFolder(ref(storage, `users/${userId}`)),
   ]);
 
   try {
@@ -194,6 +195,14 @@ export async function deleteCurrentAccount(password) {
     }
     throw error;
   }
+}
+
+async function deleteStorageFolder(folderRef) {
+  const listing = await listAll(folderRef);
+  await Promise.all([
+    ...listing.items.map((itemRef) => deleteObject(itemRef)),
+    ...listing.prefixes.map((prefixRef) => deleteStorageFolder(prefixRef)),
+  ]);
 }
 
 export function subscribeToVault(userId, onData, onError) {
