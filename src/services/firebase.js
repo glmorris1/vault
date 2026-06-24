@@ -176,11 +176,11 @@ export async function deleteCurrentAccount(password) {
   );
 
   const userId = currentUser.uid;
-  await Promise.allSettled([
+  await Promise.all([
     deleteDoc(doc(db, "vaults", userId)),
     deleteDoc(doc(db, "users", userId)),
-    deleteStorageFolder(ref(storage, `users/${userId}`)),
   ]);
+  await Promise.allSettled([deleteStorageFolder(ref(storage, `users/${userId}`))]);
 
   try {
     await withTimeout(
