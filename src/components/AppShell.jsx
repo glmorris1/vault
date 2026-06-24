@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, LogOut, Mail, Menu, Mic, Palette, Share2, Trash2, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createShareUrl } from "../services/shareLinks.js";
@@ -17,7 +17,7 @@ const ALEXA_LINKING_STEPS = "Open the Alexa app, go to Skills, choose Vault, the
 const ALEXA_SKILL_WEB_URL = `https://alexa.amazon.com/spa/index.html#skills/dp/${ALEXA_SKILL_ID}`;
 const ALEXA_SKILL_APP_URL = `alexa://skills/dp/${ALEXA_SKILL_ID}`;
 
-export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
+export function AppShell({ children, title, subtitle, showBack = false, user, onLogout, onDeleteAccount, cloudError, theme = "default", onThemeChange, onAlphabetize, data }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,6 +26,11 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   const [selectedShareIds, setSelectedShareIds] = useState(() => new Set());
   const [shareStatus, setShareStatus] = useState("");
   const [alexaStatus, setAlexaStatus] = useState("");
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteStatus, setDeleteStatus] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   function toggleMenuSection(sectionId) {
     setOpenMenuSections((current) => {
@@ -44,6 +49,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
     setAlphabetized(false);
     setShareStatus("");
     setAlexaStatus("");
+    setDeleteStatus("");
   }
 
   function toggleShareLocation(locationId) {
@@ -93,6 +99,27 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   async function copyAlexaLinkingSteps() {
     const copied = await copyTextToClipboard(ALEXA_LINKING_STEPS);
     setAlexaStatus(copied ? "Linking steps copied." : ALEXA_LINKING_STEPS);
+  }
+
+  async function handleDeleteAccount(event) {
+    event.preventDefault();
+    if (deleteConfirmation.trim().toUpperCase() !== "DELETE") {
+      setDeleteStatus('Type DELETE to confirm permanent account deletion.');
+      return;
+    }
+    setDeleteBusy(true);
+    setDeleteStatus("");
+    try {
+      await onDeleteAccount?.(deletePassword);
+      setDeleteAccountOpen(false);
+      setMenuOpen(false);
+      setDeletePassword("");
+      setDeleteConfirmation("");
+    } catch (error) {
+      setDeleteStatus((error?.message || "Vault could not delete this account. Please try again.").replace("Firebase: ", ""));
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   useLayoutEffect(() => {
@@ -275,6 +302,26 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
             </MenuSection>
 
             <MenuSection
+              id="account"
+              icon={<Trash2 size={21} />}
+              title="Account"
+              open={openMenuSections.has("account")}
+              onToggle={() => toggleMenuSection("account")}
+            >
+              <p className="text-sm font-semibold leading-6 text-vault-muted">Permanently delete your Vault account and saved Vault data.</p>
+              <button
+                className="inline-flex min-h-12 w-fit items-center justify-center rounded-2xl bg-red-50 px-5 text-sm font-black text-red-700 transition active:scale-[0.98]"
+                onClick={() => {
+                  setDeleteAccountOpen(true);
+                  setDeleteStatus("");
+                }}
+                type="button"
+              >
+                Delete account
+              </button>
+            </MenuSection>
+
+            <MenuSection
               id="alphabetize"
               icon={<span className="text-xs font-black tracking-tight">AZ</span>}
               title="Alphabetize Me!"
@@ -317,6 +364,65 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
           </aside>
         </div>
       )}
+        {deleteAccountOpen && (
+          <div className="fixed inset-0 z-[60] grid place-items-center bg-vault-ink/35 p-5 backdrop-blur-sm" onClick={() => !deleteBusy && setDeleteAccountOpen(false)}>
+            <form className="w-full max-w-sm rounded-[2rem] bg-white p-5 shadow-2xl" onSubmit={handleDeleteAccount} onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-black text-vault-ink">Delete account?</h3>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">This permanently deletes your Vault account and saved Vault data. This cannot be undone.</p>
+                </div>
+                <button className="grid size-10 shrink-0 place-items-center rounded-full bg-vault-pink text-vault-ink" type="button" onClick={() => setDeleteAccountOpen(false)} disabled={deleteBusy} aria-label="Close delete account dialog">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <label className="mt-4 grid gap-2">
+                <span className="text-sm font-bold text-vault-muted">Password</span>
+                <input
+                  className="min-h-12 rounded-2xl border border-rose-100 bg-white px-4 font-semibold outline-none focus:border-vault-rose"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+
+              <label className="mt-3 grid gap-2">
+                <span className="text-sm font-bold text-vault-muted">Type DELETE to confirm</span>
+                <input
+                  className="min-h-12 rounded-2xl border border-rose-100 bg-white px-4 font-semibold outline-none focus:border-vault-rose"
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  autoCapitalize="characters"
+                  required
+                />
+              </label>
+
+              {deleteStatus && <p className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{deleteStatus}</p>}
+
+              <div className="mt-5 grid gap-2">
+                <button
+                  className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-red-600 px-5 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  type="submit"
+                  disabled={deleteBusy || !deletePassword || deleteConfirmation.trim().toUpperCase() !== "DELETE"}
+                >
+                  {deleteBusy ? "Deleting account..." : "Permanently delete account"}
+                </button>
+                <button
+                  className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-vault-pink/55 px-5 text-sm font-black text-vault-ink transition active:scale-[0.98]"
+                  type="button"
+                  onClick={() => setDeleteAccountOpen(false)}
+                  disabled={deleteBusy}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
     </div>
   );
 }
