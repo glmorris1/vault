@@ -136,6 +136,40 @@ button * {
   padding-top: max(1rem, calc(var(--vault-safe-top) + 1rem));
 }
 
+.vault-app-shell {
+  max-width: 40rem;
+}
+
+.vault-centered-shell {
+  max-width: 40rem;
+}
+
+.vault-fab {
+  right: max(1.25rem, env(safe-area-inset-right, 0px));
+}
+
+.vault-bottom-action {
+  max-width: 28rem;
+}
+
+@media (min-width: 768px) {
+  .vault-app-shell {
+    max-width: min(72rem, calc(100vw - 3rem));
+  }
+
+  .vault-centered-shell {
+    max-width: min(48rem, calc(100vw - 3rem));
+  }
+
+  .vault-fab {
+    right: max(1.5rem, calc((100vw - min(72rem, calc(100vw - 3rem))) / 2 + 1.5rem));
+  }
+
+  .vault-bottom-action {
+    max-width: min(36rem, calc(100vw - 3rem));
+  }
+}
+
 .tap-highlight {
   -webkit-tap-highlight-color: transparent;
 }

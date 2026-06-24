@@ -137,7 +137,7 @@ export function LoginPage() {
   const canSubmit = isFirebaseConfigured && email.trim() && password.length >= 6 && (mode === "login" || username.trim());
 
   return (
-    <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
+    <main className="vault-centered-shell safe-bottom mx-auto grid min-h-svh w-full place-items-center px-4 py-8 sm:px-6">
       <div className="w-full">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">

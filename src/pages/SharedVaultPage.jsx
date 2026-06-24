@@ -83,7 +83,7 @@ export function SharedVaultPage() {
   }
 
   return (
-    <main className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 py-8 sm:px-6">
+    <main className="vault-centered-shell safe-bottom mx-auto min-h-svh w-full px-4 py-8 sm:px-6">
       <header className="mb-6 text-center">
         <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
           <img className="size-16 scale-[1.7] object-cover" src={vaultLogo} alt="" />

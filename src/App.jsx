@@ -275,7 +275,7 @@ function BiometricUnlockPage({ user, onUnlock, onLogout }) {
   }
 
   return (
-    <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl place-items-center px-4 py-8 sm:px-6">
+    <main className="vault-centered-shell safe-bottom mx-auto grid min-h-svh w-full place-items-center px-4 py-8 sm:px-6">
       <div className="w-full rounded-[2rem] bg-white p-6 text-center shadow-soft">
         <div className="mx-auto mb-4 size-16 overflow-hidden rounded-[1.75rem] bg-white shadow-soft">
           <img className="size-16 object-cover" src={vaultLogo} alt="" />

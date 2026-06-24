@@ -414,8 +414,8 @@ export function ImageDetailPage({ data, updateData }) {
       </Card>
 
       {suggestions.length > 0 && (
-        <section className="grid gap-3">
-          <h2 className="px-1 text-xl font-black">AI suggestions</h2>
+        <section className="grid gap-3 md:grid-cols-2">
+          <h2 className="px-1 text-xl font-black md:col-span-2">AI suggestions</h2>
           {suggestions.map((suggestion) => (
             <SuggestionEditor
               key={suggestion.id}
@@ -429,10 +429,12 @@ export function ImageDetailPage({ data, updateData }) {
         </section>
       )}
 
-      <section className="grid gap-3">
-        <h2 className="px-1 text-xl font-black">Pins</h2>
+      <section className="grid gap-3 md:grid-cols-2">
+        <h2 className="px-1 text-xl font-black md:col-span-2">Pins</h2>
         {image.pins.length === 0 ? (
-          <EmptyState icon="pin" title="No pins yet">Tap the photo where something is stored.</EmptyState>
+          <div className="md:col-span-2">
+            <EmptyState icon="pin" title="No pins yet">Tap the photo where something is stored.</EmptyState>
+          </div>
         ) : (
           image.pins.map((pin) => (
             <Card key={pin.id} className="flex items-center justify-between gap-3 p-4">

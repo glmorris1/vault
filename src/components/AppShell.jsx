@@ -133,7 +133,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   }, [location.pathname]);
 
   return (
-    <div className="safe-bottom mx-auto min-h-svh w-full max-w-xl px-4 pt-4 sm:px-6">
+    <div className="vault-app-shell safe-bottom mx-auto min-h-svh w-full px-4 pt-4 sm:px-6 lg:px-8">
       <header className="sticky top-0 z-20 -mx-4 mb-4 border-b border-white/70 bg-[color-mix(in_srgb,var(--vault-surface)_90%,transparent)] px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
         <div className="grid min-h-14 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
           <div className="flex justify-start">
@@ -172,7 +172,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       {menuOpen && (
         <div className="fixed inset-0 z-50 bg-vault-ink/25 backdrop-blur-sm" onClick={closeMenu}>
           <aside
-            className="safe-bottom safe-top ml-auto flex h-full w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-5 shadow-2xl"
+            className="safe-bottom safe-top ml-auto flex h-full w-[min(28rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-5 shadow-2xl md:w-[min(30rem,48vw)]"
             onClick={(event) => event.stopPropagation()}
             aria-label="Vault menu"
           >
@@ -366,7 +366,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       )}
         {deleteAccountOpen && (
           <div className="fixed inset-0 z-[60] grid place-items-center bg-vault-ink/35 p-5 backdrop-blur-sm" onClick={() => !deleteBusy && setDeleteAccountOpen(false)}>
-            <form className="w-full max-w-sm rounded-[2rem] bg-white p-5 shadow-2xl" onSubmit={handleDeleteAccount} onClick={(event) => event.stopPropagation()}>
+            <form className="w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl" onSubmit={handleDeleteAccount} onClick={(event) => event.stopPropagation()}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-black text-vault-ink">Delete account?</h3>

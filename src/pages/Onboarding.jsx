@@ -4,7 +4,7 @@ import { Card } from "../components/Card.jsx";
 
 export function Onboarding({ onFinish }) {
   return (
-    <main className="safe-bottom mx-auto grid min-h-svh w-full max-w-xl content-center px-5 py-8">
+    <main className="vault-centered-shell safe-bottom mx-auto grid min-h-svh w-full content-center px-5 py-8 md:px-8">
       <div className="mb-8">
         <div className="mb-4 grid size-16 place-items-center rounded-[1.4rem] bg-white text-vault-ink shadow-soft">
           <Archive size={30} />

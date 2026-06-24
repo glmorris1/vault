@@ -209,10 +209,12 @@ export function Dashboard({ data, updateData }) {
       )}
 
       {query.trim() ? (
-        <section className="grid gap-3">
-          <p className="px-1 text-sm font-bold text-vault-muted">{results.length} search result{results.length === 1 ? "" : "s"}</p>
+        <section className="grid gap-3 md:grid-cols-2">
+          <p className="px-1 text-sm font-bold text-vault-muted md:col-span-2">{results.length} search result{results.length === 1 ? "" : "s"}</p>
           {results.length === 0 ? (
-            <EmptyState title="Nothing found">Try a location, photo name, pin label, item, or note.</EmptyState>
+            <div className="md:col-span-2">
+              <EmptyState title="Nothing found">Try a location, photo name, pin label, item, or note.</EmptyState>
+            </div>
           ) : (
             results.map((result) => (
               <Card key={result.id} className="p-4">
@@ -232,9 +234,11 @@ export function Dashboard({ data, updateData }) {
           )}
         </section>
       ) : (
-        <section className="grid gap-4">
+        <section className="grid gap-4 md:grid-cols-2">
           {data.locations.length === 0 ? (
-            <EmptyState title="No locations yet">Add your first location, Home, Office, Grandma's House, storage area, etc.</EmptyState>
+            <div className="md:col-span-2">
+              <EmptyState title="No locations yet">Add your first location, Home, Office, Grandma's House, storage area, etc.</EmptyState>
+            </div>
           ) : (
             data.locations.map((location) => (
               <Card
@@ -285,7 +289,7 @@ export function Dashboard({ data, updateData }) {
       )}
 
       <button
-        className="fixed bottom-5 right-5 grid size-16 place-items-center rounded-full bg-vault-ink text-white shadow-2xl shadow-rose-300/60 transition active:scale-95"
+        className="vault-fab fixed bottom-5 grid size-16 place-items-center rounded-full bg-vault-ink text-white shadow-2xl shadow-rose-300/60 transition active:scale-95"
         onClick={() => setAddingLocation(true)}
         aria-label="Add location"
       >

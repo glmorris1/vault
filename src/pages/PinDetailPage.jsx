@@ -446,9 +446,11 @@ export function PinDetailPage({ data, updateData, userId }) {
         </Button>
       </div>
 
-      <section className="grid gap-3">
+      <section className="grid gap-3 lg:grid-cols-2">
         {pin.items.length === 0 ? (
-          <EmptyState title="No items yet">Add the things stored at this exact pin.</EmptyState>
+          <div className="lg:col-span-2">
+            <EmptyState title="No items yet">Add the things stored at this exact pin.</EmptyState>
+          </div>
         ) : (
           visibleItems.map((item) => {
             const isExpanded = expandedItemIds.has(item.id) && draggingItemId !== item.id;
@@ -549,7 +551,7 @@ export function PinDetailPage({ data, updateData, userId }) {
         {(pin.photos || []).length === 0 ? (
           <EmptyState icon="camera" title="No detail photos yet">Take a close-up photo of what is inside this storage spot.</EmptyState>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {(pin.photos || []).map((photo, index, photos) => (
               <Card key={photo.id} className="overflow-hidden p-0">
                 <div className="aspect-[4/3] bg-pink-50">
@@ -651,7 +653,7 @@ export function PinDetailPage({ data, updateData, userId }) {
           <span className="min-w-0 flex-1 truncate text-base font-black">{itemDragPreview.label}</span>
         </FloatingDragCard>
       )}
-      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 mx-auto w-full max-w-md px-5 pb-[env(safe-area-inset-bottom)]">
+      <div className="vault-bottom-action pointer-events-none fixed inset-x-0 bottom-5 z-40 mx-auto w-full px-5 pb-[env(safe-area-inset-bottom)]">
         <Button className="pointer-events-auto w-full shadow-2xl ring-4 ring-white/80" variant="pin" onClick={addItem}>
           <Plus size={20} />
           Add item

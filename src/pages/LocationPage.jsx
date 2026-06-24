@@ -509,7 +509,7 @@ function RoomSection({
               Add photos for this room.
             </EmptyState>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {(room.images || []).map((image, index, images) => (
                 <Card key={image.id} className="overflow-hidden p-0">
                   <Link to={`/locations/${locationId}/images/${image.id}`} className="block" onClick={onOpenImage}>
