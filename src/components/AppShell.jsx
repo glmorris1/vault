@@ -268,9 +268,9 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
             >
               <a
                 className="flex min-h-12 items-center rounded-2xl bg-vault-pink/55 px-4 text-sm font-black text-vault-ink transition active:scale-[0.98]"
-                href="mailto:sakurasimplicityllc@gmail.com"
+                href="mailto:support.sakurasimplicityllc@gmail.com"
               >
-                sakurasimplicityllc@gmail.com
+                support.sakurasimplicityllc@gmail.com
               </a>
             </MenuSection>
 
