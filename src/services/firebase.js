@@ -2,6 +2,8 @@ import { initializeApp } from "firebase/app";
 import { Capacitor } from "@capacitor/core";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
   browserLocalPersistence,
   browserSessionPersistence,
   confirmPasswordReset,
@@ -9,6 +11,7 @@ import {
   inMemoryPersistence,
   initializeAuth,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
@@ -16,7 +19,7 @@ import {
   updateProfile,
   verifyPasswordResetCode,
 } from "firebase/auth";
-import { doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDownloadURL, getStorage, ref, uploadString } from "firebase/storage";
 import { createStarterData } from "../data/storage.js";
@@ -157,6 +160,40 @@ export async function resetVaultPassword({ oobCode, password }) {
 export async function logoutUser() {
   const { auth } = getServices();
   await signOut(auth);
+}
+
+export async function deleteCurrentAccount(password) {
+  const { auth, db } = getServices();
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("No signed-in Vault account was found.");
+  if (!currentUser.email) throw new Error("This account cannot be deleted from the app because it does not have an email login.");
+  if (!password) throw new Error("Enter your password to delete this account.");
+
+  await withTimeout(
+    reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, password)),
+    20000,
+    "Confirming your password is taking too long. Please check your connection and try again.",
+  );
+
+  const userId = currentUser.uid;
+  await Promise.allSettled([
+    deleteDoc(doc(db, "vaults", userId)),
+    deleteDoc(doc(db, "users", userId)),
+  ]);
+
+  try {
+    await withTimeout(
+      deleteUser(currentUser),
+      20000,
+      "Deleting your account is taking too long. Please check your connection and try again.",
+    );
+    setStoredAIUses(0);
+  } catch (error) {
+    if (`${error?.code || ""} ${error?.message || ""}`.includes("requires-recent-login")) {
+      throw new Error("For security, sign out, sign back in, then delete the account again.");
+    }
+    throw error;
+  }
 }
 
 export function subscribeToVault(userId, onData, onError) {
