@@ -19,7 +19,7 @@ import {
   updateProfile,
   verifyPasswordResetCode,
 } from "firebase/auth";
-import { deleteDoc, doc, getDoc, getFirestore, increment, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, getFirestore, increment, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { deleteObject, getDownloadURL, getStorage, listAll, ref, uploadString } from "firebase/storage";
 import { createStarterData } from "../data/storage.js";
@@ -231,6 +231,24 @@ export async function saveVaultToCloud(userId, data) {
   const { db } = getServices();
   setStoredAIUses(Number(data.aiAssistantUses || 0));
   await setDoc(doc(db, "vaults", userId), { data, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function appendLocationsToVault(userId, locations) {
+  const { db } = getServices();
+  const locationsToAdd = Array.isArray(locations) ? locations : [];
+  if (locationsToAdd.length === 0) return { count: 0, data: null };
+
+  const vaultRef = doc(db, "vaults", userId);
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(vaultRef);
+    const current = snapshot.exists() ? snapshot.data().data || createStarterData() : createStarterData();
+    const nextData = {
+      ...current,
+      locations: [...(current.locations || []), ...locationsToAdd],
+    };
+    transaction.set(vaultRef, { data: nextData, updatedAt: serverTimestamp() }, { merge: true });
+    return { count: locationsToAdd.length, data: nextData };
+  });
 }
 
 export async function uploadPhotoForUser(userId, imageId, dataUrl) {

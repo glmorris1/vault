@@ -16,7 +16,7 @@ import { SharedVaultPage } from "./pages/SharedVaultPage.jsx";
 import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnboarding } from "./data/storage.js";
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
-import { deleteCurrentAccount, isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
+import { appendLocationsToVault, deleteCurrentAccount, isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
 import { clearPendingSharePayload, cloneSharedLocations, getPendingSharePayload, getShareAccessMetadata, isSharePayloadExpired, removeExpiredSharedLocations } from "./services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
@@ -137,11 +137,15 @@ export default function App() {
 
     pendingShareImportRef.current = true;
     const importedLocations = cloneSharedLocations(pendingPayload.locations, getShareAccessMetadata(pendingPayload));
-    setData((current) => ({
-      ...current,
-      locations: [...(current.locations || []), ...importedLocations],
-    }));
-    clearPendingSharePayload();
+    appendLocationsToVault(user.uid, importedLocations)
+      .then((result) => {
+        if (result?.data) setData(result.data);
+        clearPendingSharePayload();
+      })
+      .catch((error) => {
+        console.error("Vault could not add pending shared locations.", error);
+        pendingShareImportRef.current = false;
+      });
   }, [user?.uid, vaultReady]);
 
   function updateData(updater) {

@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card.jsx";
-import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
+import { appendLocationsToVault, isFirebaseConfigured, subscribeToAuth } from "../services/firebase.js";
 import { cleanSharedText, cloneSharedLocations, createShareAppUrlFromCurrentUrl, getShareAccessMetadata, isSharePayloadExpired, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
@@ -97,12 +97,8 @@ export function SharedVaultPage() {
     setSaving(true);
     setSaveStatus("");
     try {
-      const current = await loadExistingVault(user.uid);
       const importedLocations = cloneSharedLocations(locations, getShareAccessMetadata(payload));
-      await saveVaultToCloud(user.uid, {
-        ...current,
-        locations: [...(current.locations || []), ...importedLocations],
-      });
+      await appendLocationsToVault(user.uid, importedLocations);
       setSaveStatus(importedLocations.length === 1 ? "Added this location to your Vault." : `Added ${importedLocations.length} locations to your Vault.`);
       navigate("/", { replace: true });
     } catch (error) {
