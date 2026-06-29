@@ -288,7 +288,12 @@ export async function createSharedVaultLink(payload) {
 export async function loadSharedVaultLink(shareId) {
   const projectId = firebaseConfig.projectId;
   const response = await fetch(`https://us-central1-${projectId}.cloudfunctions.net/getShareLink?id=${encodeURIComponent(shareId)}`);
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const error = new Error(body?.error === "share_link_expired" ? "This Vault share link has expired." : "This Vault share link is unavailable.");
+    error.code = body?.error || "share_link_unavailable";
+    throw error;
+  }
   return response.json();
 }
 

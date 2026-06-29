@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card.jsx";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
-import { cleanSharedText, cloneSharedLocations, createShareAppUrlFromCurrentUrl, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
+import { cleanSharedText, cloneSharedLocations, createShareAppUrlFromCurrentUrl, getShareAccessMetadata, isSharePayloadExpired, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -23,8 +23,13 @@ export function SharedVaultPage() {
       .then((result) => {
         if (active) setPayload(result);
       })
-      .catch(() => {
-        if (active) setPayload(null);
+      .catch((error) => {
+        if (!active) return;
+        if (error?.code === "share_link_expired") {
+          navigate("/", { replace: true });
+          return;
+        }
+        setPayload(null);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -32,7 +37,7 @@ export function SharedVaultPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
@@ -62,6 +67,10 @@ export function SharedVaultPage() {
 
   async function addLocationsToVault() {
     if (locations.length === 0 || !payload) return;
+    if (isSharePayloadExpired(payload)) {
+      navigate("/", { replace: true });
+      return;
+    }
     if (!user) {
       const savedForLogin = savePendingSharePayload(payload);
       if (!savedForLogin) {
@@ -76,7 +85,7 @@ export function SharedVaultPage() {
     setSaveStatus("");
     try {
       const current = await loadExistingVault(user.uid);
-      const importedLocations = cloneSharedLocations(locations);
+      const importedLocations = cloneSharedLocations(locations, getShareAccessMetadata(payload));
       await saveVaultToCloud(user.uid, {
         ...current,
         locations: [...(current.locations || []), ...importedLocations],

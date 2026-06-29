@@ -17,7 +17,7 @@ import { createStarterData, hasSeenOnboarding, loadVault, saveVault, setSeenOnbo
 import { findLocation } from "./data/search.js";
 import { isBiometricSessionUnlocked, isBiometricUnlockEnabled, unlockWithBiometrics } from "./services/authPreferences.js";
 import { deleteCurrentAccount, isFirebaseConfigured, logoutUser, saveVaultToCloud, subscribeToAuth, subscribeToVault } from "./services/firebase.js";
-import { clearPendingSharePayload, cloneSharedLocations, getPendingSharePayload } from "./services/shareLinks.js";
+import { clearPendingSharePayload, cloneSharedLocations, getPendingSharePayload, getShareAccessMetadata, isSharePayloadExpired, removeExpiredSharedLocations } from "./services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -39,6 +39,25 @@ export default function App() {
   const pendingShareImportRef = useRef(false);
 
   useEffect(() => saveVault(data), [data]);
+
+  useEffect(() => {
+    const { data: cleanedData, removed } = removeExpiredSharedLocations(data);
+    if (removed > 0) {
+      setData(cleanedData);
+      return undefined;
+    }
+
+    const nextExpiration = (data.locations || [])
+      .map((location) => (location.sharedAccess?.expiresAt ? new Date(location.sharedAccess.expiresAt).getTime() : 0))
+      .filter((time) => Number.isFinite(time) && time > Date.now())
+      .sort((a, b) => a - b)[0];
+    if (!nextExpiration) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setData((current) => removeExpiredSharedLocations(current).data);
+    }, Math.min(nextExpiration - Date.now() + 1000, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [data]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -111,9 +130,13 @@ export default function App() {
     if (!vaultReady || pendingShareImportRef.current) return;
     const pendingPayload = getPendingSharePayload();
     if (!pendingPayload?.locations?.length) return;
+    if (isSharePayloadExpired(pendingPayload)) {
+      clearPendingSharePayload();
+      return;
+    }
 
     pendingShareImportRef.current = true;
-    const importedLocations = cloneSharedLocations(pendingPayload.locations);
+    const importedLocations = cloneSharedLocations(pendingPayload.locations, getShareAccessMetadata(pendingPayload));
     setData((current) => ({
       ...current,
       locations: [...(current.locations || []), ...importedLocations],

@@ -5,15 +5,21 @@ const SHARE_BASE_URL = "https://vault-organized.com/";
 export const VAULT_APP_URL_SCHEME = "com.glmorris1.vault";
 const PENDING_SHARE_PAYLOAD_KEY = "vault.share.pendingPayload";
 const BLOCKED_SHARED_TEXT = ["Only include what is visible.", "Do not guess hidden contents."];
+const DEFAULT_SHARE_DAYS = 30;
 
-export async function createShareUrl(locations) {
+export async function createShareUrl(locations, options = {}) {
+  const expiresAt = getShareExpiresAt(options.expiresInDays);
   const payload = {
     version: 1,
     createdAt: new Date().toISOString(),
+    expiresAt,
     locations: (locations || []).map(prepareSharedLocation),
   };
   try {
-    const result = await createSharedVaultLink(payload);
+    const result = await createSharedVaultLink({
+      ...payload,
+      expiresInDays: options.expiresInDays ?? DEFAULT_SHARE_DAYS,
+    });
     if (result?.url) return result.url;
   } catch (error) {
     console.warn("Vault short share link failed; falling back to embedded link.", error);
@@ -23,17 +29,17 @@ export async function createShareUrl(locations) {
 
 export async function readSharePayload() {
   const shareId = new URLSearchParams(window.location.search).get("shareId");
-  if (shareId) return loadSharedVaultLink(shareId);
+  if (shareId) return assertSharePayloadIsActive(await loadSharedVaultLink(shareId));
 
   const searchData = new URLSearchParams(window.location.search).get("share");
-  if (searchData) return decodePayload(searchData);
+  if (searchData) return assertSharePayloadIsActive(decodePayload(searchData));
 
   const hash = window.location.hash.replace(/^#/, "");
   const query = hash.startsWith("share&") ? hash.slice("share&".length) : hash;
   const params = new URLSearchParams(query);
   const data = params.get("data");
   if (!data) return null;
-  return decodePayload(data);
+  return assertSharePayloadIsActive(decodePayload(data));
 }
 
 export function createShareAppUrlFromCurrentUrl() {
@@ -86,8 +92,34 @@ export function clearPendingSharePayload() {
   window.sessionStorage.removeItem(PENDING_SHARE_PAYLOAD_KEY);
 }
 
-export function cloneSharedLocations(locations) {
-  return (locations || []).map(cloneSharedLocation);
+export function cloneSharedLocations(locations, shareAccess = {}) {
+  const normalizedShareAccess = normalizeShareAccess(shareAccess);
+  return (locations || []).map((location) => cloneSharedLocation(location, normalizedShareAccess));
+}
+
+export function getShareAccessMetadata(payload) {
+  return {
+    shareId: payload?.shareId || "",
+    expiresAt: payload?.expiresAt || null,
+  };
+}
+
+export function isSharePayloadExpired(payload, date = new Date()) {
+  const expiresAt = payload?.expiresAt ? new Date(payload.expiresAt) : null;
+  return Boolean(expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt <= date);
+}
+
+export function removeExpiredSharedLocations(data, date = new Date()) {
+  const locations = data?.locations || [];
+  const activeLocations = locations.filter((location) => !isShareAccessExpired(location.sharedAccess, date));
+  if (activeLocations.length === locations.length) return { data, removed: 0 };
+  return {
+    data: {
+      ...data,
+      locations: activeLocations,
+    },
+    removed: locations.length - activeLocations.length,
+  };
 }
 
 function prepareSharedLocation(location) {
@@ -143,13 +175,15 @@ function prepareSharedImage(image) {
   };
 }
 
-function cloneSharedLocation(location) {
-  return {
+function cloneSharedLocation(location, shareAccess) {
+  const clonedLocation = {
     ...location,
     id: createId("location"),
     rooms: (location.rooms || []).map(cloneSharedRoom),
     images: (location.images || []).map(cloneSharedImage),
   };
+  if (shareAccess) clonedLocation.sharedAccess = shareAccess;
+  return clonedLocation;
 }
 
 function cloneSharedRoom(room) {
@@ -201,6 +235,36 @@ function cloneSharedItem(item) {
 
 function hasSharedItemContent(item) {
   return Boolean(item.name || item.notes || item.quantity || item.estimatedValue);
+}
+
+function getShareExpiresAt(expiresInDays) {
+  if (expiresInDays === null || expiresInDays === "permanent") return null;
+  const days = Number(expiresInDays ?? DEFAULT_SHARE_DAYS);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return new Date(Date.now() + Math.ceil(days) * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function assertSharePayloadIsActive(payload) {
+  if (isSharePayloadExpired(payload)) {
+    const error = new Error("This Vault share link has expired.");
+    error.code = "share_link_expired";
+    throw error;
+  }
+  return payload;
+}
+
+function normalizeShareAccess(shareAccess) {
+  if (!shareAccess?.expiresAt) return null;
+  return {
+    source: "shared",
+    shareId: shareAccess.shareId || "",
+    expiresAt: shareAccess.expiresAt,
+  };
+}
+
+function isShareAccessExpired(shareAccess, date) {
+  const expiresAt = shareAccess?.expiresAt ? new Date(shareAccess.expiresAt) : null;
+  return Boolean(expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt <= date);
 }
 
 export function cleanSharedText(value) {

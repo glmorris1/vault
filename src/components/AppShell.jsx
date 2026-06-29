@@ -24,6 +24,8 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
   const [openMenuSections, setOpenMenuSections] = useState(() => new Set(["theme"]));
   const [alphabetized, setAlphabetized] = useState(false);
   const [selectedShareIds, setSelectedShareIds] = useState(() => new Set());
+  const [shareDurationDays, setShareDurationDays] = useState(7);
+  const [sharePermanent, setSharePermanent] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [alexaStatus, setAlexaStatus] = useState("");
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -70,7 +72,10 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
       setShareStatus("Choose at least one location to share.");
       return;
     }
-    const url = await createShareUrl(locations);
+    const durationDays = Math.max(1, Math.min(3650, Math.ceil(Number(shareDurationDays) || 1)));
+    const url = await createShareUrl(locations, {
+      expiresInDays: sharePermanent ? null : durationDays,
+    });
     try {
       if (window.navigator.share) {
         await window.navigator.share({
@@ -82,6 +87,7 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
         await window.navigator.clipboard.writeText(url);
         setShareStatus("Share link copied.");
       }
+      setShareStatus(sharePermanent ? "Share link is ready and will not expire." : `Share link is ready for ${durationDays} day${durationDays === 1 ? "" : "s"}.`);
       setSelectedShareIds(new Set());
     } catch (error) {
       if (error?.name !== "AbortError") setShareStatus("The share link is ready, but this device could not open sharing.");
@@ -236,6 +242,31 @@ export function AppShell({ children, title, subtitle, showBack = false, user, on
                   ))}
                 </div>
               )}
+              <div className="grid gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                <label className="flex items-center gap-3 text-sm font-black text-vault-ink">
+                  <input
+                    className="size-5 accent-vault-blue"
+                    type="checkbox"
+                    checked={sharePermanent}
+                    onChange={(event) => setSharePermanent(event.target.checked)}
+                  />
+                  Share permanently
+                </label>
+                {!sharePermanent && (
+                  <label className="grid gap-1 text-sm font-black text-vault-ink">
+                    Number of days to share
+                    <input
+                      className="min-h-11 rounded-2xl border border-rose-100 bg-white px-3 text-base font-semibold outline-none focus:border-vault-rose"
+                      type="number"
+                      min="1"
+                      max="3650"
+                      inputMode="numeric"
+                      value={shareDurationDays}
+                      onChange={(event) => setShareDurationDays(event.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
               <button
                 className="flex min-h-12 w-fit items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
                 onClick={shareSelectedLocations}

@@ -23,7 +23,8 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 const REFRESH_TOKEN_TTL_MS = 180 * 24 * 60 * 60 * 1000;
-const SHARE_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SHARE_LINK_DEFAULT_DAYS = 30;
+const SHARE_LINK_MAX_DAYS = 3650;
 const SHARE_LINK_BASE_URL = "https://vault-organized.com/";
 const HOUSEHOLD_ITEM_ALIASES: Record<string, string[]> = {
   "adhesive bandages": ["bandages", "bandaids", "band aids"],
@@ -156,9 +157,12 @@ export const createShareLink = onCall(
     }
 
     const id = randomBytes(9).toString("base64url");
+    const expiresAt = getShareLinkExpiration(request.data?.expiresInDays);
     const payload = {
       version: 1,
       createdAt: new Date().toISOString(),
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      shareId: id,
       locations,
     };
 
@@ -166,12 +170,13 @@ export const createShareLink = onCall(
       ownerUid: uid,
       payload,
       createdAt: FieldValue.serverTimestamp(),
-      expiresAt: new Date(Date.now() + SHARE_LINK_TTL_MS),
+      expiresAt,
     });
 
     return {
       id,
       url: `${SHARE_LINK_BASE_URL}?shareId=${id}`,
+      expiresAt: payload.expiresAt,
     };
   },
 );
@@ -205,6 +210,15 @@ export const getShareLink = onRequest(
     response.status(200).json(data.payload);
   },
 );
+
+function getShareLinkExpiration(value: unknown) {
+  if (value === null || value === "permanent") return null;
+  const days = Number(value ?? SHARE_LINK_DEFAULT_DAYS);
+  if (!Number.isFinite(days) || days <= 0 || days > SHARE_LINK_MAX_DAYS) {
+    throw new HttpsError("invalid-argument", "Choose a share duration between 1 and 3650 days, or share permanently.");
+  }
+  return new Date(Date.now() + Math.ceil(days) * 24 * 60 * 60 * 1000);
+}
 
 export const alexaVaultSkill = onRequest(
   {
