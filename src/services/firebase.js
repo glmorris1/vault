@@ -308,7 +308,7 @@ function getVaultWebBaseUrl() {
   if (!Capacitor.isNativePlatform()) {
     return new URL(import.meta.env.BASE_URL, window.location.origin).toString();
   }
-  return "https://glmorris1.github.io/vault/";
+  return "https://vault-organized.com/";
 }
 
 function isUnauthorizedContinueUriError(error) {

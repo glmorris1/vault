@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Fingerprint } from "lucide-react";
 import { AppShell } from "./components/AppShell.jsx";
 import { Button } from "./components/Button.jsx";
@@ -21,6 +22,7 @@ import { clearPendingSharePayload, cloneSharedLocations, getPendingSharePayload 
 const vaultLogo = "./vault-icon.png";
 
 const THEME_STORAGE_KEY = "vault-theme";
+const APP_STORE_URL = "https://apps.apple.com/app/id6770382986";
 
 export default function App() {
   const [data, setData] = useState(loadVault);
@@ -141,6 +143,11 @@ export default function App() {
   const shareParams = new URLSearchParams(routerLocation.search);
   const hasShareLink = shareParams.has("share") || shareParams.has("shareId");
   const isPasswordResetLink = routerLocation.pathname.startsWith("/reset-password") || (shareParams.get("mode") === "resetPassword" && shareParams.has("oobCode"));
+  const isPublicWebLanding =
+    !Capacitor.isNativePlatform() &&
+    routerLocation.pathname === "/" &&
+    !routerLocation.search &&
+    !window.location.hash;
 
   if (hasShareLink || window.location.hash.startsWith("#share") || routerLocation.pathname.startsWith("/share")) {
     return (
@@ -150,6 +157,10 @@ export default function App() {
         <Route path="*" element={<SharedVaultPage />} />
       </Routes>
     );
+  }
+
+  if (isPublicWebLanding) {
+    return <PublicLandingPage />;
   }
 
   if (isPasswordResetLink) {
@@ -240,6 +251,73 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+function PublicLandingPage() {
+  return (
+    <main className="min-h-svh bg-white px-5 py-8 text-vault-ink">
+      <div className="mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-5xl flex-col">
+        <nav className="flex items-center justify-between gap-4">
+          <a className="flex items-center gap-3" href="/" aria-label="Vault home">
+            <img className="size-12 rounded-2xl shadow-sm" src={vaultLogo} alt="" />
+            <span>
+              <span className="gold-4 block text-3xl font-black tracking-[0.14em]">Vault</span>
+              <span className="block text-xs font-black uppercase tracking-[0.2em] text-vault-muted">Life. Organized.</span>
+            </span>
+          </a>
+          <div className="flex items-center gap-3 text-sm font-black text-vault-muted">
+            <a className="hover:text-vault-ink" href="/support/">Support</a>
+            <a className="hover:text-vault-ink" href="/privacy/">Privacy</a>
+          </div>
+        </nav>
+
+        <section className="grid flex-1 items-center gap-10 py-10 md:grid-cols-[1.05fr_0.95fr] md:py-16">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.28em] text-vault-muted">Home inventory for real life</p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-black leading-none tracking-normal text-vault-ink sm:text-6xl">
+              Remember where everything is stored.
+            </h1>
+            <p className="mt-5 max-w-2xl text-lg font-semibold leading-8 text-vault-muted">
+              Vault helps organize homes, offices, storage units, and shared spaces with locations, rooms, photos, pins, and items.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                className="tap-highlight inline-flex min-h-14 items-center justify-center rounded-2xl bg-black px-6 text-base font-black text-white shadow-soft transition active:scale-[0.98]"
+                href={APP_STORE_URL}
+              >
+                Download on the App Store
+              </a>
+              <a
+                className="tap-highlight inline-flex min-h-14 items-center justify-center rounded-2xl border border-rose-100 bg-white px-6 text-base font-black text-vault-ink shadow-sm transition active:scale-[0.98]"
+                href="/support/"
+              >
+                Contact support
+              </a>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-sm">
+            <div className="rounded-[2rem] border border-rose-100 bg-gradient-to-b from-pink-50 to-white p-4 shadow-soft">
+              <div className="overflow-hidden rounded-[1.5rem] bg-white shadow-sm">
+                <div className="px-5 pt-7 text-center">
+                  <img className="mx-auto size-20 rounded-[1.5rem]" src={vaultLogo} alt="" />
+                  <p className="gold-4 mt-4 text-4xl font-black tracking-[0.16em]">Vault</p>
+                  <p className="text-sm font-black tracking-[0.2em] text-vault-muted">Life. Organized.</p>
+                </div>
+                <div className="grid gap-3 p-5">
+                  {["Add locations and rooms", "Pin storage spots on photos", "Ask Alexa where items are"].map((item) => (
+                    <div className="rounded-2xl bg-vault-pink/60 px-4 py-3 text-sm font-black text-vault-ink" key={item}>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
 

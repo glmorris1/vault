@@ -24,7 +24,7 @@ const OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 const REFRESH_TOKEN_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 const SHARE_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const SHARE_LINK_BASE_URL = "https://glmorris1.github.io/vault/";
+const SHARE_LINK_BASE_URL = "https://vault-organized.com/";
 const HOUSEHOLD_ITEM_ALIASES: Record<string, string[]> = {
   "adhesive bandages": ["bandages", "bandaids", "band aids"],
   batteries: ["battery"],

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card.jsx";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
-import { cleanSharedText, cloneSharedLocations, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
+import { cleanSharedText, cloneSharedLocations, createShareAppUrlFromCurrentUrl, readSharePayload, savePendingSharePayload } from "../services/shareLinks.js";
 
 const vaultLogo = "./vault-icon.png";
 
@@ -14,6 +14,7 @@ export function SharedVaultPage() {
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const [openAppStatus, setOpenAppStatus] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,6 +51,14 @@ export function SharedVaultPage() {
   }, []);
 
   const locations = payload?.locations || [];
+
+  function openInVaultApp() {
+    setOpenAppStatus("Opening Vault app...");
+    window.location.href = createShareAppUrlFromCurrentUrl();
+    window.setTimeout(() => {
+      setOpenAppStatus("If Vault did not open, you can continue from this webpage.");
+    }, 1200);
+  }
 
   async function addLocationsToVault() {
     if (locations.length === 0 || !payload) return;
@@ -114,6 +123,15 @@ export function SharedVaultPage() {
                 <p className="mt-2 text-sm font-semibold leading-6 text-vault-muted">
                   Save these shared locations into your own account. If you need to sign in first, Vault will add them automatically after login.
                 </p>
+                <button
+                  className="mt-4 inline-flex min-h-12 items-center justify-center rounded-2xl bg-vault-ink px-5 text-sm font-black text-white shadow-soft transition active:scale-[0.98]"
+                  onClick={openInVaultApp}
+                  type="button"
+                >
+                  Open in Vault app
+                </button>
+                <p className="mt-2 text-xs font-semibold leading-5 text-vault-muted">If this device cannot open the Vault app, continue on this webpage.</p>
+                {openAppStatus && <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{openAppStatus}</p>}
                 {!authReady && <p className="mt-2 text-sm font-semibold text-vault-muted">Checking your login...</p>}
                 {saveStatus && <p className="mt-2 rounded-2xl bg-vault-pink/60 p-3 text-sm font-semibold text-vault-muted">{saveStatus}</p>}
                 <button

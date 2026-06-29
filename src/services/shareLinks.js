@@ -1,7 +1,8 @@
 import { createSharedVaultLink, loadSharedVaultLink } from "./firebase.js";
 import { createId } from "../data/storage.js";
 
-const SHARE_BASE_URL = "https://glmorris1.github.io/vault/";
+const SHARE_BASE_URL = "https://vault-organized.com/";
+export const VAULT_APP_URL_SCHEME = "com.glmorris1.vault";
 const PENDING_SHARE_PAYLOAD_KEY = "vault.share.pendingPayload";
 const BLOCKED_SHARED_TEXT = ["Only include what is visible.", "Do not guess hidden contents."];
 
@@ -33,6 +34,23 @@ export async function readSharePayload() {
   const data = params.get("data");
   if (!data) return null;
   return decodePayload(data);
+}
+
+export function createShareAppUrlFromCurrentUrl() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const shareId = searchParams.get("shareId");
+  if (shareId) return `${VAULT_APP_URL_SCHEME}://share?shareId=${encodeURIComponent(shareId)}`;
+
+  const share = searchParams.get("share");
+  if (share) return `${VAULT_APP_URL_SCHEME}://share?share=${encodeURIComponent(share)}`;
+
+  const hash = window.location.hash.replace(/^#/, "");
+  const query = hash.startsWith("share&") ? hash.slice("share&".length) : hash;
+  const hashParams = new URLSearchParams(query);
+  const data = hashParams.get("data");
+  if (data) return `${VAULT_APP_URL_SCHEME}://share#share&data=${encodeURIComponent(data)}`;
+
+  return `${VAULT_APP_URL_SCHEME}://share`;
 }
 
 export function savePendingSharePayload(payload) {
