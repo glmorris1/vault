@@ -45,16 +45,16 @@ export async function readSharePayload() {
 export function createShareAppUrlFromCurrentUrl() {
   const searchParams = new URLSearchParams(window.location.search);
   const shareId = searchParams.get("shareId");
-  if (shareId) return `${VAULT_APP_URL_SCHEME}://share?shareId=${encodeURIComponent(shareId)}`;
+  if (shareId) return `${VAULT_APP_URL_SCHEME}://share?shareId=${encodeURIComponent(shareId)}&autoAdd=1`;
 
   const share = searchParams.get("share");
-  if (share) return `${VAULT_APP_URL_SCHEME}://share?share=${encodeURIComponent(share)}`;
+  if (share) return `${VAULT_APP_URL_SCHEME}://share?share=${encodeURIComponent(share)}&autoAdd=1`;
 
   const hash = window.location.hash.replace(/^#/, "");
   const query = hash.startsWith("share&") ? hash.slice("share&".length) : hash;
   const hashParams = new URLSearchParams(query);
   const data = hashParams.get("data");
-  if (data) return `${VAULT_APP_URL_SCHEME}://share#share&data=${encodeURIComponent(data)}`;
+  if (data) return `${VAULT_APP_URL_SCHEME}://share#share&data=${encodeURIComponent(data)}&autoAdd=1`;
 
   return `${VAULT_APP_URL_SCHEME}://share`;
 }

@@ -1,5 +1,6 @@
 import { CheckCircle, Home, LogIn, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card.jsx";
 import { isFirebaseConfigured, loadExistingVault, saveVaultToCloud, subscribeToAuth } from "../services/firebase.js";
@@ -15,6 +16,7 @@ export function SharedVaultPage() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [openAppStatus, setOpenAppStatus] = useState("");
+  const autoAddStartedRef = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,8 +58,19 @@ export function SharedVaultPage() {
   }, []);
 
   const locations = payload?.locations || [];
+  const shouldAutoAdd = new URLSearchParams(window.location.search).get("autoAdd") === "1";
+
+  useEffect(() => {
+    if (!shouldAutoAdd || autoAddStartedRef.current || loading || !payload || !authReady) return;
+    autoAddStartedRef.current = true;
+    addLocationsToVault();
+  }, [shouldAutoAdd, loading, payload, authReady, user]);
 
   function openInVaultApp() {
+    if (Capacitor.isNativePlatform()) {
+      addLocationsToVault();
+      return;
+    }
     setOpenAppStatus("Opening Vault app...");
     window.location.href = createShareAppUrlFromCurrentUrl();
     window.setTimeout(() => {
